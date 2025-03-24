@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cimso_golf_booking/screens/booking.dart';
 import 'package:cimso_golf_booking/screens/mybooking.dart';
-
 import 'package:cimso_golf_booking/screens/Profile_Page.dart';
-import 'package:cimso_golf_booking/screens//GolfCourseDetailPage.dart';
+import 'package:cimso_golf_booking/screens/GolfCourseDetailPage.dart';
+// Update this import to point to your actual AuthService location
+import 'auth_service.dart';
+import 'dashboard_sidebar.dart';
+import 'dashboard_bottombar.dart';
 
-// Main Dashboard Class
 class Dashboard extends StatefulWidget {
   final String title;
-
-
 
   const Dashboard({Key? key, required this.title}) : super(key: key);
 
@@ -43,6 +43,20 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
         curve: Curves.easeInOut,
       ),
     );
+
+    // Load user data when the dashboard initializes
+    _loadUserData();
+  }
+
+  // Load user data from AuthService
+  Future<void> _loadUserData() async {
+    final currentUser = await AuthService.getCurrentUser();
+    if (currentUser != null && mounted) {
+      setState(() {
+        userName = currentUser.username;
+        userEmail = currentUser.email;
+      });
+    }
   }
 
   @override
@@ -83,7 +97,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     }
   }
 
-  // Simplified and minimalist color scheme
+  // Simplified and minimalist color scheme - defined here and passed to components
   final Color primaryColor = Colors.black;
   final Color accentColor = const Color(0xFF4CAF50); // A subtle green
   final Color backgroundColor = Colors.white;
@@ -96,7 +110,45 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: _buildMinimalistAppBar(),
-      drawer: _buildMinimalistDrawer(),
+      drawer: DashboardSidebar(
+        userName: userName,
+        userEmail: userEmail,
+        selectedIndex: _selectedIndex,
+        onProfileTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProfilePage(
+                onProfileUpdate: (name, email) {
+                  setState(() {
+                    userName = name;
+                    userEmail = email;
+                  });
+                },
+                initialName: userName,
+                initialEmail: userEmail,
+              ),
+            ),
+          );
+        },
+        onDashboardTap: () {
+          Navigator.pop(context);
+          setState(() {
+            _selectedIndex = 0;
+          });
+        },
+        onBookingsTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const MyBooking()),
+          );
+        },
+        accentColor: accentColor,
+        textColor: textColor,
+        secondaryTextColor: secondaryTextColor,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -227,7 +279,13 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
           ),
         ),
       ),
-      bottomNavigationBar: _buildMinimalistBottomNav(),
+      bottomNavigationBar: DashboardBottomBar(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
+        accentColor: accentColor,
+        backgroundColor: backgroundColor,
+        secondaryTextColor: secondaryTextColor,
+      ),
     );
   }
 
@@ -288,104 +346,6 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildMinimalistDrawer() {
-    return Drawer(
-      backgroundColor: backgroundColor,
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          Container(
-            height: 120,
-            padding: const EdgeInsets.all(24),
-            alignment: Alignment.bottomLeft,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  userName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  userEmail,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          _buildDrawerItem(Icons.dashboard_outlined, 'Dashboard', isSelected: _selectedIndex == 0, onTap: () {
-            Navigator.pop(context);
-            setState(() {
-              _selectedIndex = 0;
-            });
-          }),
-          _buildDrawerItem(Icons.person_outline, 'Profile', onTap: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProfilePage(
-                  onProfileUpdate: (name, email) {
-                    setState(() {
-                      userName = name;
-                      userEmail = email;
-                    });
-                  },
-                  initialName: userName,
-                  initialEmail: userEmail,
-                ),
-              ),
-            );
-          }),
-          _buildDrawerItem(Icons.calendar_today_outlined, 'My Bookings', onTap: () {
-            Navigator.pop(context); // Close drawer
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const MyBooking()),
-            );
-          }),
-          _buildDrawerItem(Icons.notifications_outlined, 'Notifications'),
-          _buildDrawerItem(Icons.credit_card_outlined, 'Payment Methods'),
-          const Divider(height: 1),
-          _buildDrawerItem(Icons.settings_outlined, 'Settings'),
-          _buildDrawerItem(Icons.help_outline, 'Help & Support'),
-          _buildDrawerItem(Icons.logout_outlined, 'Log Out'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawerItem(IconData icon, String title, {bool isSelected = false, VoidCallback? onTap}) {
-    return ListTile(
-      dense: true,
-      leading: Icon(
-        icon,
-        size: 20,
-        color: isSelected ? accentColor : secondaryTextColor,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isSelected ? accentColor : textColor,
-          fontWeight: FontWeight.w400,
-          fontSize: 14,
-        ),
-      ),
-      selected: isSelected,
-      selectedTileColor: isSelected ? accentColor.withOpacity(0.08) : null,
-      onTap: onTap ?? () {},
     );
   }
 
@@ -578,65 +538,6 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
           ),
         );
       },
-    );
-  }
-
-  Widget _buildMinimalistBottomNav() {
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(Icons.home_outlined, 'Home', 0),
-          _buildNavItem(Icons.calendar_today_outlined, 'Bookings', 1),
-          _buildNavItem(Icons.person_outline, 'Profile', 2),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    final bool isSelected = _selectedIndex == index;
-
-    return InkWell(
-      onTap: () => _onItemTapped(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? accentColor.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: isSelected ? accentColor : secondaryTextColor,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? accentColor : secondaryTextColor,
-                fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

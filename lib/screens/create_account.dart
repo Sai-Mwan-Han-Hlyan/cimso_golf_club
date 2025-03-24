@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'loading_screen.dart';
+import 'auth_service.dart';
 
 class CreateAccount extends StatefulWidget {
   const CreateAccount({super.key});
@@ -17,20 +18,42 @@ class _CreateAccountState extends State<CreateAccount> {
   final TextEditingController _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
-  void _handleCreateAccount() {
+  Future<void> _handleCreateAccount() async {
     if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
       // Show loading screen
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const LoadingScreen(message: "Creating account...")),
       );
 
-      // Simulate API call with delay
-      Future.delayed(const Duration(seconds: 2), () {
-        // Replace loading screen with dashboard
+      // Try to register the user
+      final success = await AuthService.register(
+        _usernameController.text,
+        _emailController.text,
+        _passwordController.text,
+      );
+
+      // Handle registration result
+      if (success) {
+        // Navigate to dashboard
         Navigator.pushReplacementNamed(context, '/dashboard');
-      });
+      } else {
+        // Remove loading screen
+        Navigator.pop(context);
+
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Email already registered';
+        });
+      }
     }
   }
 
@@ -83,6 +106,23 @@ class _CreateAccountState extends State<CreateAccount> {
                     ),
                     const SizedBox(height: 32),
 
+                    // Error message if registration fails
+                    if (_errorMessage != null)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade100),
+                        ),
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red.shade700),
+                        ),
+                      ),
+                    if (_errorMessage != null) const SizedBox(height: 20),
+
                     // Modern Material Design TextFields
                     _buildMaterialTextField(
                       'Username',
@@ -116,7 +156,7 @@ class _CreateAccountState extends State<CreateAccount> {
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: _handleCreateAccount,
+                        onPressed: _isLoading ? null : _handleCreateAccount,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -125,7 +165,16 @@ class _CreateAccountState extends State<CreateAccount> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
+                        child: _isLoading
+                            ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : const Text(
                           'Create Account',
                           style: TextStyle(
                             fontSize: 16,

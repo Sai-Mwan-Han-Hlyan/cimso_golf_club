@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
   final Function(String, String) onProfileUpdate;
@@ -20,12 +22,16 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   late TextEditingController nameController;
   late TextEditingController emailController;
   late TextEditingController phoneController;
-  String? gender = 'Male';
-  DateTime? selectedDate = DateTime(1990, 6, 15);
+  String? gender; // Changed to null
+  DateTime? selectedDate; // Changed to null
   String selectedCountryCode = 'US +1';
   late AnimationController _buttonAnimationController;
   late Animation<double> _buttonAnimation;
   bool _isEditMode = false;
+
+  // Variables for image handling
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
 
   // Revised list of country codes with unique identifiers
   final List<String> countryCodes = [
@@ -63,7 +69,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     // Initialize controllers with the passed values
     nameController = TextEditingController(text: widget.initialName);
     emailController = TextEditingController(text: widget.initialEmail);
-    phoneController = TextEditingController(text: '555-123-4567');
+    phoneController = TextEditingController(text: ''); // Set to empty
 
     _buttonAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -138,6 +144,37 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     });
   }
 
+  // New image handling methods
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _imageFile = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _imageFile = null;
+    });
+  }
+
   void _showChangePhotoOptions() {
     showModalBottomSheet(
       context: context,
@@ -164,7 +201,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     label: 'Camera',
                     onTap: () {
                       Navigator.pop(context);
-                      // Camera functionality would go here
+                      _pickImage(ImageSource.camera);
                     },
                   ),
                   _photoOptionButton(
@@ -172,7 +209,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     label: 'Gallery',
                     onTap: () {
                       Navigator.pop(context);
-                      // Gallery functionality would go here
+                      _pickImage(ImageSource.gallery);
                     },
                   ),
                   _photoOptionButton(
@@ -181,7 +218,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     isDestructive: true,
                     onTap: () {
                       Navigator.pop(context);
-                      // Remove photo functionality would go here
+                      _removeImage();
                     },
                   ),
                 ],
@@ -313,14 +350,22 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                               child: CircleAvatar(
                                 radius: 60,
                                 backgroundColor: Colors.white,
-                                child: Text(
-                                  nameController.text.isNotEmpty ? nameController.text[0].toUpperCase() : 'U',
+                                // Use the image file if available, otherwise show the initial
+                                backgroundImage: _imageFile != null
+                                    ? FileImage(_imageFile!) as ImageProvider
+                                    : null,
+                                child: _imageFile == null
+                                    ? Text(
+                                  nameController.text.isNotEmpty
+                                      ? nameController.text[0].toUpperCase()
+                                      : 'U',
                                   style: const TextStyle(
                                     fontSize: 50,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.indigo,
                                   ),
-                                ),
+                                )
+                                    : null,
                               ),
                             ),
                             if (_isEditMode)
@@ -384,8 +429,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                           controller: phoneController,
                           keyboardType: TextInputType.phone,
                           prefixWidget: _isEditMode ? _buildCountryCodeDropdown() : null,
-                          suffix: !_isEditMode ? ' ($selectedCountryCode)' : '',
+                          suffix: !_isEditMode && phoneController.text.isNotEmpty ? ' ($selectedCountryCode)' : '',
                           isEditable: _isEditMode,
+                          placeholder: 'Add phone number',
                         ),
                       ],
                     ),
@@ -402,6 +448,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                           content: selectedDate != null
                               ? '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
                               : 'Not set',
+                          placeholder: 'Add date of birth',
                           onTap: () => _selectDate(context),
                           isEditable: _isEditMode,
                         ),
@@ -409,6 +456,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                           icon: Icons.person_outline,
                           label: 'Gender',
                           content: gender ?? 'Not specified',
+                          placeholder: 'Select gender',
                           customEditWidget: _isEditMode ? _buildGenderSelector() : null,
                           isEditable: _isEditMode,
                         ),
@@ -594,6 +642,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     Widget? prefixWidget,
     String suffix = '',
     bool isEditable = false,
+    String placeholder = 'Not set',
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -625,6 +674,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   keyboardType: keyboardType,
                   decoration: InputDecoration(
                     isDense: true,
+                    hintText: placeholder,
+                    hintStyle: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 14,
+                    ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 12,
@@ -648,7 +702,17 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           )
               : Padding(
             padding: const EdgeInsets.only(left: 8.0),
-            child: Text(
+            child: controller.text.isEmpty
+                ? Text(
+              placeholder,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: Colors.grey[400],
+                fontStyle: FontStyle.italic,
+              ),
+            )
+                : Text(
               controller.text + suffix,
               style: const TextStyle(
                 fontSize: 16,
@@ -665,6 +729,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     required IconData icon,
     required String label,
     required String content,
+    String placeholder = 'Not set',
     VoidCallback? onTap,
     Widget? customEditWidget,
     bool isEditable = false,
@@ -708,9 +773,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      content,
-                      style: const TextStyle(
+                      content == "Not set" ? placeholder : content,
+                      style: TextStyle(
                         fontSize: 16,
+                        color: content == "Not set" ? Colors.grey[400] : Colors.black87,
+                        fontStyle: content == "Not set" ? FontStyle.italic : FontStyle.normal,
                       ),
                     ),
                     if (onTap != null)
@@ -722,7 +789,17 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           else
             Padding(
               padding: const EdgeInsets.only(left: 8.0),
-              child: Text(
+              child: content == "Not set" || content == "Not specified"
+                  ? Text(
+                placeholder,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey[400],
+                  fontStyle: FontStyle.italic,
+                ),
+              )
+                  : Text(
                 content,
                 style: const TextStyle(
                   fontSize: 16,

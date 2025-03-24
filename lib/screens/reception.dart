@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'booking_model.dart';
-import 'mybooking.dart';
+// Import correctly with the full path
+import 'package:cimso_golf_booking/screens/mybooking.dart';
 
 class ReceptionPage extends StatelessWidget {
   final String course;
@@ -116,6 +117,7 @@ class ReceptionPage extends StatelessWidget {
                       );
 
                       // Navigate to MyBooking and pass the new booking
+                      // Use the correct MyBooking constructor and import
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(

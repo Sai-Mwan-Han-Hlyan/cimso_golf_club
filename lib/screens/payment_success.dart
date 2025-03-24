@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'notification.dart';
 import 'booking_model.dart';
 import 'mybooking.dart';
+import 'dashboard.dart';
 
 class PaymentSuccessPage extends StatelessWidget {
   final String course;
@@ -33,208 +34,231 @@ class PaymentSuccessPage extends StatelessWidget {
       });
     });
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          'Payment Successful',
-          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
-        ),
+    return WillPopScope(
+      // Prevent going back to payment screen
+      onWillPop: () async {
+        // Navigate to dashboard instead
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => Dashboard(title: 'Dashboard'),
+          ),
+              (route) => false,
+        );
+        return false;
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+        appBar: AppBar(
+          title: Text(
+            'Payment Successful',
+            style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+            onPressed: () {
+              // Override back button to go to dashboard
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => Dashboard(title: 'Dashboard'),
+                ),
+                    (route) => false,
+              );
+            },
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.check_circle_rounded,
-                    color: Colors.green[600],
-                    size: 70,
-                  ),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  'Payment Successful!',
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Your tee time has been confirmed. See you on the green!',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.black54,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 36),
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      _buildDetailRow(
-                        context,
-                        Icons.golf_course_rounded,
-                        'Course',
-                        course,
-                      ),
-                      const Divider(height: 24),
-                      _buildDetailRow(
-                        context,
-                        Icons.access_time_rounded,
-                        'Time',
-                        time,
-                      ),
-                      const Divider(height: 24),
-                      _buildDetailRow(
-                        context,
-                        Icons.calendar_today_rounded,
-                        'Date',
-                        DateFormat('EEEE, MMMM d, yyyy').format(date),
-                      ),
-                      const Divider(height: 24),
-                      _buildDetailRow(
-                        context,
-                        Icons.people_alt_rounded,
-                        'Players',
-                        '$players ${players == 1 ? 'player' : 'players'}',
-                      ),
-                      const Divider(height: 24),
-                      _buildDetailRow(
-                        context,
-                        Icons.electric_car_rounded,
-                        'Carts',
-                        '$carts ${carts == 1 ? 'cart' : 'carts'}',
-                      ),
-                      const Divider(height: 24),
-                      _buildDetailRow(
-                        context,
-                        Icons.payment_rounded,
-                        'Amount Paid',
-                        '฿ ${amountPaid.toStringAsFixed(2)}',
-                        isHighlighted: true,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          // Add calendar functionality here
-                        },
-                        icon: const Icon(Icons.calendar_month_rounded),
-                        label: Text(
-                          'Add to Calendar',
-                          style: GoogleFonts.poppins(fontSize: 16),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.green[700],
-                          elevation: 0,
-                          side: BorderSide(color: Colors.green[700]!),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          // Create a booking model from the payment details
-                          final newBooking = BookingModel(
-                            courseName: course,
-                            date: date,
-                            time: time,
-                            players: players,
-                            carts: carts,
-                            isUpcoming: true,
-                            amountPaid: amountPaid,
-                          );
-
-                          // Navigate back to the MyBooking page with the new booking
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => MyBooking(newBooking: newBooking),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.check_rounded),
-                        label: Text(
-                          'Done',
-                          style: GoogleFonts.poppins(fontSize: 16),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[700],
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.green[600],
+                      size: 70,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: () {
-                    // Add share receipt functionality here
-                  },
-                  icon: const Icon(Icons.share_rounded, size: 18),
-                  label: Text(
-                    'Share Receipt',
+                  ),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Payment Successful!',
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your tee time has been confirmed. See you on the green!',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black54,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 36),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildDetailRow(
+                          context,
+                          Icons.golf_course_rounded,
+                          'Course',
+                          course,
+                        ),
+                        const Divider(height: 24),
+                        _buildDetailRow(
+                          context,
+                          Icons.access_time_rounded,
+                          'Time',
+                          time,
+                        ),
+                        const Divider(height: 24),
+                        _buildDetailRow(
+                          context,
+                          Icons.calendar_today_rounded,
+                          'Date',
+                          DateFormat('EEEE, MMMM d, yyyy').format(date),
+                        ),
+                        const Divider(height: 24),
+                        _buildDetailRow(
+                          context,
+                          Icons.people_alt_rounded,
+                          'Players',
+                          '$players ${players == 1 ? 'player' : 'players'}',
+                        ),
+                        const Divider(height: 24),
+                        _buildDetailRow(
+                          context,
+                          Icons.electric_car_rounded,
+                          'Carts',
+                          '$carts ${carts == 1 ? 'cart' : 'carts'}',
+                        ),
+                        const Divider(height: 24),
+                        _buildDetailRow(
+                          context,
+                          Icons.payment_rounded,
+                          'Amount Paid',
+                          '฿ ${amountPaid.toStringAsFixed(2)}',
+                          isHighlighted: true,
+                        ),
+                      ],
                     ),
                   ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black54,
+                  const SizedBox(height: 40),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // Add calendar functionality here
+                          },
+                          icon: const Icon(Icons.calendar_month_rounded),
+                          label: Text(
+                            'Add to Calendar',
+                            style: GoogleFonts.poppins(fontSize: 16),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.green[700],
+                            elevation: 0,
+                            side: BorderSide(color: Colors.green[700]!),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // Create a booking model from the payment details
+                            final newBooking = BookingModel(
+                              courseName: course,
+                              date: date,
+                              time: time,
+                              players: players,
+                              carts: carts,
+                              isUpcoming: true,
+                              amountPaid: amountPaid,
+                            );
+
+                            // Navigate to the MyBooking page with the new booking
+                            // Clear the entire stack so we don't have payment pages in history
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MyBooking(newBooking: newBooking),
+                              ),
+                                  (route) => false, // Remove all previous routes
+                            );
+                          },
+                          icon: const Icon(Icons.check_rounded),
+                          label: Text(
+                            'Done',
+                            style: GoogleFonts.poppins(fontSize: 16),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[700],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: () {
+                      // Add share receipt functionality here
+                    },
+                    icon: const Icon(Icons.share_rounded, size: 18),
+                    label: Text(
+                      'Share Receipt',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

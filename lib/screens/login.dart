@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'loading_screen.dart';
+import 'auth_service.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -14,20 +15,58 @@ class _LoginState extends State<Login> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
-  void _handleLogin() {
+  @override
+  void initState() {
+    super.initState();
+    // Check if user is already logged in
+    _checkLoggedInUser();
+  }
+
+  Future<void> _checkLoggedInUser() async {
+    final isLoggedIn = await AuthService.isLoggedIn();
+    if (isLoggedIn) {
+      // Navigate to dashboard if already logged in
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    }
+  }
+
+  Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
       // Show loading screen
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const LoadingScreen(message: "Signing in...")),
       );
 
-      // Simulate API call with delay
-      Future.delayed(const Duration(seconds: 2), () {
-        // Replace loading screen with dashboard
+      // Try to login
+      final success = await AuthService.login(
+        _emailController.text,
+        _passwordController.text,
+      );
+
+      // Handle login result
+      if (success) {
+        // Navigate to dashboard
         Navigator.pushReplacementNamed(context, '/dashboard');
-      });
+      } else {
+        // Remove loading screen
+        Navigator.pop(context);
+
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Invalid email or password';
+        });
+      }
     }
   }
 
@@ -80,6 +119,23 @@ class _LoginState extends State<Login> {
                     ),
                     const SizedBox(height: 40),
 
+                    // Error message if login fails
+                    if (_errorMessage != null)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade100),
+                        ),
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red.shade700),
+                        ),
+                      ),
+                    if (_errorMessage != null) const SizedBox(height: 20),
+
                     // Modern Material Design TextFields
                     _buildMaterialTextField(
                       'Email',
@@ -114,7 +170,7 @@ class _LoginState extends State<Login> {
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: _handleLogin,
+                        onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -123,7 +179,16 @@ class _LoginState extends State<Login> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
+                        child: _isLoading
+                            ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : const Text(
                           'Sign In',
                           style: TextStyle(
                             fontSize: 16,
@@ -279,9 +344,6 @@ class _LoginState extends State<Login> {
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Password is required';
-        }
-        if (value.length < 6) {
-          return 'Password must be at least 6 characters';
         }
         return null;
       },
