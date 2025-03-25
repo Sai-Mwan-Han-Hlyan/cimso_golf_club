@@ -114,42 +114,6 @@ class _MyBookingState extends State<MyBooking> {
     }
   }
 
-  // View booking details with refresh handling
-  Future<void> _viewBookingDetails(BookingModel booking) async {
-    // Navigate to booking details and await result
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            BookingDetailPage(
-              booking: booking,
-            ),
-      ),
-    );
-
-    // Check if we need to refresh the bookings
-    if (result != null && result is Map && result['refreshBookings'] == true) {
-      // Reload bookings from the service
-      await _loadBookings();
-
-      // Switch to past bookings tab if a booking was cancelled
-      if (result['bookingCancelled'] == true) {
-        setState(() {
-          _selectedIndex = 1; // Switch to Past tab
-        });
-
-        // Inform the user where to find the cancelled booking
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Booking has been moved to Past Bookings'),
-            duration: Duration(seconds: 2),
-            backgroundColor: accentColor,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -324,11 +288,41 @@ class _MyBookingState extends State<MyBooking> {
               pastBookings = _bookingService.getPastBookings();
             });
 
-            // Switch to past tab if cancelled
-            if (result is Map && result['bookingCancelled'] == true) {
-              setState(() {
-                _selectedIndex = 1;
-              });
+            // Handle the result based on what action was taken
+            if (result is Map) {
+              // Check if booking was cancelled
+              if (result['bookingCancelled'] == true) {
+                setState(() {
+                  _selectedIndex = 1; // Switch to Past tab
+                });
+
+                // Show snackbar about cancellation
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Booking has been moved to Past Bookings'),
+                    duration: Duration(seconds: 2),
+                    backgroundColor: accentColor,
+                  ),
+                );
+              }
+
+              // Check if booking was rescheduled
+              if (result['bookingRescheduled'] == true) {
+                // Get the new date and time from the result
+                DateTime? newDate = result['newDate'];
+                String? newTime = result['newTime'];
+
+                if (newDate != null && newTime != null) {
+                  // Show notification about successful rescheduling
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Booking rescheduled successfully to ${DateFormat("MMM d").format(newDate)} at $newTime'),
+                      duration: Duration(seconds: 3),
+                      backgroundColor: accentColor,
+                    ),
+                  );
+                }
+              }
             }
           }
         },

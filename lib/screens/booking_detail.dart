@@ -23,6 +23,7 @@ class BookingDetailPage extends StatefulWidget {
 
 class _BookingDetailPageState extends State<BookingDetailPage> {
   final BookingService _bookingService = BookingService();
+  late BookingModel booking; // Local copy to track changes
 
   // Colors
   final Color accentColor = const Color(0xFF4CAF50);
@@ -37,10 +38,12 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   late bool _isPaid;
   late bool _canCancel;
   late bool _requiresAdvancePayment;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    booking = widget.booking; // Create local copy for modifications
     _initializeBookingState();
 
     // If coming from payment success, update the booking
@@ -53,31 +56,32 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   Future<void> _updateBookingAfterPayment() async {
     // Create a new booking with payment info
     final updatedBooking = BookingModel(
-      courseName: widget.booking.courseName,
-      date: widget.booking.date,
-      time: widget.booking.time,
-      players: widget.booking.players,
-      carts: widget.booking.carts,
-      isUpcoming: widget.booking.isUpcoming,
-      amountPaid: widget.booking.amountPaid, // This should be set by the payment success page
+      courseName: booking.courseName,
+      date: booking.date,
+      time: booking.time,
+      players: booking.players,
+      carts: booking.carts,
+      isUpcoming: booking.isUpcoming,
+      amountPaid: booking.amountPaid, // This should be set by the payment success page
     );
 
     // Update the booking in the service
-    await _bookingService.updateBooking(widget.booking, updatedBooking);
+    await _bookingService.updateBooking(booking, updatedBooking);
 
-    // Update state to reflect payment
+    // Update local copy
     setState(() {
+      booking = updatedBooking;
       _isPaid = true;
     });
   }
 
   void _initializeBookingState() {
     // Check if booking is cancelled (using our special indicator)
-    final bool isCancelled = widget.booking.amountPaid == -1.0;
+    final bool isCancelled = booking.amountPaid == -1.0;
 
     // Check if booking is paid based on amountPaid or fromPaymentSuccess flag
     // For cancelled bookings, we'll consider them "paid" so they don't show payment buttons
-    _isPaid = widget.booking.amountPaid != null || widget.fromPaymentSuccess || isCancelled;
+    _isPaid = booking.amountPaid != null || widget.fromPaymentSuccess || isCancelled;
 
     // Determine if booking can be cancelled (more than 24 hours before tee time)
     // For cancelled bookings, this should always be false
@@ -85,7 +89,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       _canCancel = false;
     } else {
       final now = DateTime.now();
-      final bookingDateTime = _combineDateTime(widget.booking.date, widget.booking.time);
+      final bookingDateTime = _combineDateTime(booking.date, booking.time);
       final difference = bookingDateTime.difference(now);
       _canCancel = difference.inHours > 24;
     }
@@ -110,7 +114,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
   // Add a new helper method to check if the booking is cancelled
   bool _isBookingCancelled() {
-    return widget.booking.amountPaid == -1.0;
+    return booking.amountPaid == -1.0;
   }
 
   // Fixed _buildDetailItem method without recursive calls
@@ -153,7 +157,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isUpcoming = widget.booking.isUpcoming;
+    final bool isUpcoming = booking.isUpcoming;
     final bool isCancelled = _isBookingCancelled();
 
     return Scaffold(
@@ -173,10 +177,15 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, size: 20),
           color: textColor,
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(
+              context,
+              {'refreshBookings': true}  // Always signal a refresh when leaving this page
+          ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: accentColor))
+          : SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -211,7 +220,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.booking.courseName,
+                    booking.courseName,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -223,7 +232,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       Icon(Icons.calendar_today, size: 16, color: secondaryTextColor),
                       const SizedBox(width: 8),
                       Text(
-                        DateFormat("EEEE, MMMM d, yyyy").format(widget.booking.date),
+                        DateFormat("EEEE, MMMM d, yyyy").format(booking.date),
                         style: TextStyle(
                           fontSize: 16,
                           color: textColor,
@@ -237,7 +246,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       Icon(Icons.access_time, size: 16, color: secondaryTextColor),
                       const SizedBox(width: 8),
                       Text(
-                        widget.booking.time,
+                        booking.time,
                         style: TextStyle(
                           fontSize: 16,
                           color: textColor,
@@ -267,15 +276,15 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  _buildDetailItem('Players', '${widget.booking.players} ${widget.booking.players == 1 ? 'Player' : 'Players'}'),
+                  _buildDetailItem('Players', '${booking.players} ${booking.players == 1 ? 'Player' : 'Players'}'),
 
-                  if (widget.booking.carts != null)
-                    _buildDetailItem('Carts', '${widget.booking.carts} ${widget.booking.carts == 1 ? 'Cart' : 'Carts'}'),
+                  if (booking.carts != null)
+                    _buildDetailItem('Carts', '${booking.carts} ${booking.carts == 1 ? 'Cart' : 'Carts'}'),
 
-                  if (widget.booking.amountPaid != null && widget.booking.amountPaid != -1.0)
+                  if (booking.amountPaid != null && booking.amountPaid != -1.0)
                     _buildDetailItem(
                       'Amount Paid',
-                      '฿ ${widget.booking.amountPaid!.toStringAsFixed(2)}',
+                      '฿ ${booking.amountPaid!.toStringAsFixed(2)}',
                       highlight: true,
                     ),
 
@@ -520,25 +529,25 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
   // Helper methods for status styling
   Color _getStatusBannerColor() {
-    if (!widget.booking.isUpcoming) return surfaceColor;
+    if (!booking.isUpcoming) return surfaceColor;
     if (!_isPaid) return warningColor.withOpacity(0.1);
     return accentColor.withOpacity(0.1);
   }
 
   IconData _getStatusIcon() {
-    if (!widget.booking.isUpcoming) return Icons.event_busy;
+    if (!booking.isUpcoming) return Icons.event_busy;
     if (!_isPaid) return Icons.pending_actions;
     return Icons.event_available;
   }
 
   Color _getStatusIconColor() {
-    if (!widget.booking.isUpcoming) return secondaryTextColor;
+    if (!booking.isUpcoming) return secondaryTextColor;
     if (!_isPaid) return warningColor;
     return accentColor;
   }
 
   String _getStatusText() {
-    if (!widget.booking.isUpcoming) return 'Past Booking';
+    if (!booking.isUpcoming) return 'Past Booking';
     if (!_isPaid) return 'Payment Required';
     return 'Confirmed Booking';
   }
@@ -549,40 +558,72 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       context,
       MaterialPageRoute(
         builder: (context) => PaymentPage(
-          course: widget.booking.courseName,
-          date: widget.booking.date,
-          time: widget.booking.time,
-          players: widget.booking.players,
-          carts: widget.booking.carts ?? 0,
+          course: booking.courseName,
+          date: booking.date,
+          time: booking.time,
+          players: booking.players,
+          carts: booking.carts ?? 0,
         ),
       ),
     );
   }
 
-  void _showRescheduleDialog() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReschedulePage(
-          booking: widget.booking,
-          onRescheduleComplete: (updatedBooking) async {
-            // Update state with the new booking information
-            setState(() {
-              // Update any necessary state variables
-              _initializeBookingState();
-            });
+  // Updated rescheduling method that properly handles the result
+  Future<void> _showRescheduleDialog() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-            // Show success message
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Booking successfully rescheduled'),
-                backgroundColor: accentColor,
-              ),
-            );
-          },
+    try {
+      // Navigate to reschedule page and await result
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReschedulePage(
+            booking: booking,
+            onRescheduleComplete: (updatedBooking) async {
+              // This callback is called from the ReschedulePage
+              // after a successful reschedule
+            },
+          ),
         ),
-      ),
-    );
+      );
+
+      // Check if we got back rescheduled booking info
+      if (result != null && result is Map && result.containsKey('updatedBooking')) {
+        BookingModel updatedBooking = result['updatedBooking'];
+
+        // Update the booking in the service
+        await _bookingService.updateBooking(booking, updatedBooking);
+
+        // Update local state
+        setState(() {
+          booking = updatedBooking;
+          _initializeBookingState(); // Re-initialize state based on new booking
+        });
+
+        // Return success to the calling page with the new date/time
+        Navigator.pop(context, {
+          'refreshBookings': true,
+          'bookingRescheduled': true,
+          'newDate': updatedBooking.date,
+          'newTime': updatedBooking.time
+        });
+      }
+    } catch (e) {
+      print('Error in rescheduling: $e');
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error rescheduling booking: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _showCancelDialog(BuildContext context) async {
@@ -607,7 +648,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     if (confirmed == true) {
       try {
         // Use the updated cancelBooking method which moves the booking to past bookings
-        await _bookingService.cancelBooking(widget.booking);
+        await _bookingService.cancelBooking(booking);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -648,7 +689,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
             const Text('Are you sure you want to cancel this booking and request a refund?'),
             const SizedBox(height: 16),
             Text(
-              'Amount to be refunded: ฿ ${widget.booking.amountPaid?.toStringAsFixed(2) ?? "0.00"}',
+              'Amount to be refunded: ฿ ${booking.amountPaid?.toStringAsFixed(2) ?? "0.00"}',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: accentColor,
@@ -681,7 +722,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     if (confirmed == true) {
       try {
         // Use the updated cancelBooking method which moves the booking to past bookings
-        await _bookingService.cancelBooking(widget.booking);
+        await _bookingService.cancelBooking(booking);
 
         if (mounted) {
           // Show refund confirmation dialog

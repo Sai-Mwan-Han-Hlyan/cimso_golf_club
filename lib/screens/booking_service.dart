@@ -104,7 +104,6 @@ class BookingService {
     }
   }
 
-  // FIXED: Cancel a booking - move from upcoming to past
   // FIXED: Cancel a booking - move from upcoming to past with cancelled status
   Future<void> cancelBooking(BookingModel booking) async {
     // Ensure we're initialized
@@ -153,31 +152,73 @@ class BookingService {
     return _upcomingBookings.isNotEmpty || _pastBookings.isNotEmpty;
   }
 
-  // Add this method to your BookingService class
-  Future<void> updateBooking(BookingModel oldBooking, BookingModel updatedBooking) async {
-    await init(); // Ensure service is initialized
+  // Improved updateBooking method with better error handling and logging
+  Future<bool> updateBooking(BookingModel oldBooking, BookingModel updatedBooking) async {
+    try {
+      await init(); // Ensure service is initialized
 
-    // Find the index of the booking to update
-    int upcomingIndex = _upcomingBookings.indexWhere(
-            (b) => b.courseName == oldBooking.courseName &&
-            b.date.isAtSameMomentAs(oldBooking.date) &&
-            b.time == oldBooking.time
-    );
+      // Try to find the booking in upcoming bookings first
+      int upcomingIndex = _upcomingBookings.indexWhere(
+              (b) => b.courseName == oldBooking.courseName &&
+              b.date.isAtSameMomentAs(oldBooking.date) &&
+              b.time == oldBooking.time
+      );
 
-    int pastIndex = _pastBookings.indexWhere(
-            (b) => b.courseName == oldBooking.courseName &&
-            b.date.isAtSameMomentAs(oldBooking.date) &&
-            b.time == oldBooking.time
-    );
+      if (upcomingIndex != -1) {
+        // Found in upcoming bookings
+        print("Updating upcoming booking at index $upcomingIndex");
+        print("Old date/time: ${oldBooking.date} / ${oldBooking.time}");
+        print("New date/time: ${updatedBooking.date} / ${updatedBooking.time}");
 
-    // Update in the appropriate list
-    if (upcomingIndex != -1) {
-      _upcomingBookings[upcomingIndex] = updatedBooking;
-    } else if (pastIndex != -1) {
-      _pastBookings[pastIndex] = updatedBooking;
+        _upcomingBookings[upcomingIndex] = updatedBooking;
+        await saveBookings();
+        return true;
+      }
+
+      // If not found in upcoming, check past bookings
+      int pastIndex = _pastBookings.indexWhere(
+              (b) => b.courseName == oldBooking.courseName &&
+              b.date.isAtSameMomentAs(oldBooking.date) &&
+              b.time == oldBooking.time
+      );
+
+      if (pastIndex != -1) {
+        // Found in past bookings
+        print("Updating past booking at index $pastIndex");
+        _pastBookings[pastIndex] = updatedBooking;
+        await saveBookings();
+        return true;
+      }
+
+      // If we got here, the booking wasn't found
+      print("Booking not found for update. Original date/time: ${oldBooking.date} / ${oldBooking.time}");
+      return false;
+    } catch (e) {
+      print('Error updating booking: $e');
+      return false;
+    }
+  }
+
+  // Find booking by ID (if your BookingModel has an ID)
+  // This is useful for finding a booking when the date/time has changed
+  Future<BookingModel?> findBookingById(String id) async {
+    await init();
+
+    // Try to find in upcoming bookings
+    for (var booking in _upcomingBookings) {
+      if (booking.id == id) {
+        return booking;
+      }
     }
 
-    // Save updated bookings to storage
-    await saveBookings();
+    // Try to find in past bookings
+    for (var booking in _pastBookings) {
+      if (booking.id == id) {
+        return booking;
+      }
+    }
+
+    // Not found
+    return null;
   }
 }

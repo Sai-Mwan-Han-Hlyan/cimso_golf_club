@@ -14,41 +14,58 @@ class ReschedulePage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<ReschedulePage> createState() => _ReschedulePageState();
+  _ReschedulePageState createState() => _ReschedulePageState();
 }
 
 class _ReschedulePageState extends State<ReschedulePage> {
   final BookingService _bookingService = BookingService();
+  late DateTime _selectedDate;
+  late String _selectedTime;
+  bool _isLoading = false;
 
-  // State variables
-  DateTime _selectedDate = DateTime.now();
-  String _selectedTime = "10:00 AM";
+  // Colors
+  final Color accentColor = const Color(0xFF4CAF50);
+  final Color backgroundColor = Colors.white;
+  final Color surfaceColor = const Color(0xFFF9F9F9);
+  final Color textColor = Colors.black87;
+  final Color secondaryTextColor = Colors.black54;
 
-  // Golf course available times (example)
+  // Available time slots (these would typically come from an API)
   final List<String> _availableTimes = [
-    "07:00 AM", "07:30 AM", "08:00 AM", "08:30 AM",
-    "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-    "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM",
-    "01:00 PM", "01:30 PM", "02:00 PM", "02:30 PM",
-    "03:00 PM", "03:30 PM", "04:00 PM"
+    '07:00 AM',
+    '07:30 AM',
+    '08:00 AM',
+    '08:30 AM',
+    '09:00 AM',
+    '09:30 AM',
+    '10:00 AM',
+    '10:30 AM',
+    '11:00 AM',
+    '11:30 AM',
+    '12:00 PM',
+    '12:30 PM',
+    '01:00 PM',
+    '01:30 PM',
+    '02:00 PM',
+    '02:30 PM',
+    '03:00 PM',
+    '03:30 PM',
+    '04:00 PM',
   ];
 
   @override
   void initState() {
     super.initState();
-    // Initialize to current booking date + 1 day as default selection
-    _selectedDate = widget.booking.date.add(const Duration(days: 1));
+    _selectedDate = widget.booking.date;
+    _selectedTime = widget.booking.time;
   }
 
   @override
   Widget build(BuildContext context) {
-    final Color accentColor = const Color(0xFF4CAF50);
-    final Color textColor = Colors.black87;
-    final Color secondaryTextColor = Colors.black54;
-
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: backgroundColor,
         elevation: 0,
         title: Text(
           'Reschedule Booking',
@@ -56,6 +73,7 @@ class _ReschedulePageState extends State<ReschedulePage> {
             color: textColor,
             fontSize: 18,
             fontWeight: FontWeight.w400,
+            letterSpacing: 0.5,
           ),
         ),
         leading: IconButton(
@@ -64,250 +82,221 @@ class _ReschedulePageState extends State<ReschedulePage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Current booking info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Current Booking',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: accentColor))
+          : SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Current booking info
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Current Booking',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today, size: 16, color: secondaryTextColor),
-                      const SizedBox(width: 8),
-                      Text(
-                        DateFormat("EEEE, MMMM d, yyyy").format(widget.booking.date),
-                        style: TextStyle(color: textColor),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.access_time, size: 16, color: secondaryTextColor),
-                      const SizedBox(width: 8),
-                      Text(
-                        widget.booking.time,
-                        style: TextStyle(color: textColor),
-                      ),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(Icons.golf_course, size: 16, color: secondaryTextColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.booking.courseName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 16, color: secondaryTextColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat("EEEE, MMMM d, yyyy").format(widget.booking.date),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 16, color: secondaryTextColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.booking.time,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // New date selection
-            Text(
-              'Select New Date',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: textColor,
+              // Select new date
+              Text(
+                'Select New Date',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: textColor,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: InkWell(
+              const SizedBox(height: 12),
+              GestureDetector(
                 onTap: () => _selectDate(context),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         DateFormat("EEEE, MMMM d, yyyy").format(_selectedDate),
-                        style: TextStyle(color: textColor),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: textColor,
+                        ),
                       ),
-                      Icon(Icons.calendar_today, color: accentColor),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 20,
+                        color: accentColor,
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // New time selection
-            Text(
-              'Select New Time',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: textColor,
+              // Select new time
+              Text(
+                'Select New Time',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: textColor,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(8),
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 2.5,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
                 itemCount: _availableTimes.length,
                 itemBuilder: (context, index) {
                   final time = _availableTimes[index];
                   final isSelected = time == _selectedTime;
-
-                  return InkWell(
+                  return GestureDetector(
                     onTap: () {
                       setState(() {
                         _selectedTime = time;
                       });
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 16,
-                      ),
                       decoration: BoxDecoration(
-                        color: isSelected ? accentColor.withOpacity(0.1) : null,
-                        borderRadius: BorderRadius.circular(4),
-                        border: isSelected
-                            ? Border.all(color: accentColor)
-                            : null,
+                        color: isSelected ? accentColor : surfaceColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected ? accentColor : Colors.grey.shade300,
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 16,
-                            color: isSelected ? accentColor : secondaryTextColor,
+                      child: Center(
+                        child: Text(
+                          time,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : textColor,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            time,
-                            style: TextStyle(
-                              color: isSelected ? accentColor : textColor,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (isSelected)
-                            Icon(
-                              Icons.check_circle,
-                              color: accentColor,
-                              size: 20,
-                            ),
-                        ],
+                        ),
                       ),
                     ),
                   );
                 },
               ),
-            ),
 
-            const SizedBox(height: 32),
+              const SizedBox(height: 32),
 
-            // Important notes
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.orange),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Important Notes',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.orange,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '• Rescheduling is free if done 24 hours before tee time\n• A fee may apply for last-minute changes\n• Your payment status will remain the same',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: textColor,
-                      height: 1.5,
+              // Save button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _saveReschedule(),
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: accentColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Confirm button
-            ElevatedButton(
-              onPressed: () => _confirmReschedule(),
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: accentColor,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  child: const Text(
+                    'Save Changes',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
-              child: const Text('Confirm Reschedule'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    // Calculate date limits
+    // Get today's date for the minimum selectable date
     final DateTime now = DateTime.now();
-    final DateTime minDate = now;
-    final DateTime maxDate = now.add(const Duration(days: 90)); // 3 months ahead
+
+    // Calculate the maximum selectable date (e.g., 30 days from now)
+    final DateTime maxDate = now.add(const Duration(days: 30));
 
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate.isAfter(minDate) ? _selectedDate : minDate,
-      firstDate: minDate,
+      initialDate: _selectedDate,
+      firstDate: now,
       lastDate: maxDate,
       builder: (context, child) {
         return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF4CAF50), // accent color
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: accentColor,
               onPrimary: Colors.white,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF4CAF50),
-              ),
+              onSurface: textColor,
             ),
           ),
           child: child!,
@@ -322,91 +311,66 @@ class _ReschedulePageState extends State<ReschedulePage> {
     }
   }
 
-  void _confirmReschedule() async {
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
+  Future<void> _saveReschedule() async {
+    // Check if anything has changed
+    if (_selectedDate == widget.booking.date && _selectedTime == widget.booking.time) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No changes were made to the booking.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      // Create updated booking
+      // Create a new booking with the updated date and time
       final updatedBooking = BookingModel(
         courseName: widget.booking.courseName,
         date: _selectedDate,
         time: _selectedTime,
         players: widget.booking.players,
         carts: widget.booking.carts,
-        isUpcoming: true,
+        isUpcoming: widget.booking.isUpcoming,
         amountPaid: widget.booking.amountPaid,
       );
 
-      // Update booking in service
-      await _bookingService.updateBooking(widget.booking, updatedBooking);
+      // Update the booking in the service
+      final success = await _bookingService.updateBooking(widget.booking, updatedBooking);
 
-      // Remove loading indicator
-      if (context.mounted) Navigator.pop(context);
+      if (success) {
+        // Call the callback function to inform the parent about the successful reschedule
+        widget.onRescheduleComplete(updatedBooking);
 
-      // Show success dialog
-      if (context.mounted) {
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.check_circle, color: const Color(0xFF4CAF50)),
-                const SizedBox(width: 8),
-                const Text('Booking Rescheduled'),
-              ],
-            ),
-            content: const Text(
-              'Your booking has been successfully rescheduled. You will receive a confirmation email shortly.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  // Return to booking details with updated booking
-                  widget.onRescheduleComplete(updatedBooking);
-                  Navigator.of(context).pop();
-                },
-                child: const Text('OK'),
-              ),
-            ],
+        // Return to the previous screen with the updated booking information
+        Navigator.pop(context, {
+          'updatedBooking': updatedBooking,
+        });
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to reschedule the booking. Please try again.'),
+            backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
-      // Remove loading indicator
-      if (context.mounted) Navigator.pop(context);
-
-      // Show error dialog
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red),
-                const SizedBox(width: 8),
-                const Text('Error'),
-              ],
-            ),
-            content: Text(
-              'Failed to reschedule booking: ${e.toString()}',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 }
