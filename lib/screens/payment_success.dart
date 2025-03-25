@@ -1,11 +1,11 @@
-// payment_success_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'notification.dart';
-import 'booking_model.dart';
-import 'mybooking.dart';
+import 'notification_manager.dart';
 import 'dashboard.dart';
+import'booking_model.dart';
+import'mybooking.dart';
+import'notification.dart';
 
 class PaymentSuccessPage extends StatelessWidget {
   final String course;
@@ -27,10 +27,9 @@ class PaymentSuccessPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Show notification after a short delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(seconds: 2), () {
-        _showNotification(context);
+        _showNotificationPopup(context);
       });
     });
 
@@ -266,28 +265,41 @@ class PaymentSuccessPage extends StatelessWidget {
     );
   }
 
-  // Add this method to show the notification
-  void _showNotification(BuildContext context) {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => NotificationScreen(
-          title: 'Booking Complete!',
-          message: 'Your tee time for $course at $time on ${DateFormat('EEEE, MMMM d').format(date)} has been confirmed. We\'ve sent all details to your email.',
-          icon: Icons.notifications_active,
-          iconColor: Colors.white,
-          iconBackgroundColor: Colors.green,
-        ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(0.0, 1.0);
-          const end = Offset.zero;
-          const curve = Curves.easeOutQuint;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
+
+  void _showNotificationPopup(BuildContext context) {
+    final newNotification = NotificationModel(
+      title: 'Booking Complete!',
+      message: 'Your tee time for $course at $time on ${DateFormat('EEEE, MMMM d').format(date)} has been confirmed.',
+      icon: Icons.notifications_active,
+      timestamp: DateTime.now(),
+    );
+
+    NotificationManager.addNotification(newNotification);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(newNotification.title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text(newNotification.message, style: GoogleFonts.poppins()),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close pop-up and view notifications
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationScreen()),
+              );
+            },
+            child: Text('View Notifications', style: GoogleFonts.poppins(color: Colors.green)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close pop-up without viewing notifications
+            },
+            child: Text('Close', style: GoogleFonts.poppins(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

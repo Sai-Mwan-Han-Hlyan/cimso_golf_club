@@ -1,9 +1,74 @@
-
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'payment_success.dart';
 import 'loading_screen.dart';
+
+// Custom input formatter for credit card number with spaces
+class CardNumberInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    // Remove all non-digits
+    String value = newValue.text.replaceAll(RegExp(r'\D'), '');
+
+    // Trim to max 16 digits
+    if (value.length > 16) {
+      value = value.substring(0, 16);
+    }
+
+    // Add spaces after every 4 digits
+    StringBuffer result = StringBuffer();
+    for (int i = 0; i < value.length; i++) {
+      if (i > 0 && i % 4 == 0) {
+        result.write(' ');
+      }
+      result.write(value[i]);
+    }
+
+    return TextEditingValue(
+      text: result.toString(),
+      selection: TextSelection.collapsed(offset: result.length),
+    );
+  }
+}
+
+// Custom input formatter for expiration date (MM/YY)
+class ExpiryDateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    // Remove all non-digits
+    String value = newValue.text.replaceAll(RegExp(r'\D'), '');
+
+    // Trim to max 4 digits
+    if (value.length > 4) {
+      value = value.substring(0, 4);
+    }
+
+    // Format as MM/YY
+    StringBuffer result = StringBuffer();
+    for (int i = 0; i < value.length; i++) {
+      if (i == 2 && value.length > 2) {
+        result.write('/');
+      }
+      result.write(value[i]);
+    }
+
+    return TextEditingValue(
+      text: result.toString(),
+      selection: TextSelection.collapsed(offset: result.length),
+    );
+  }
+}
 
 class PaymentPage extends StatefulWidget {
   final String course;
@@ -33,6 +98,132 @@ class _PaymentPageState extends State<PaymentPage> {
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _obscureCVV = true;
+  String? _cardType;
+
+  @override
+  void initState() {
+    super.initState();
+    _cardNumberController.addListener(_updateCardType);
+  }
+
+  @override
+  void dispose() {
+    _cardNumberController.removeListener(_updateCardType);
+    _cardNumberController.dispose();
+    _cardholderNameController.dispose();
+    _expirationDateController.dispose();
+    _cvvController.dispose();
+    super.dispose();
+  }
+
+  void _updateCardType() {
+    final cardNumber = _cardNumberController.text.replaceAll(' ', '');
+
+    if (cardNumber.isEmpty) {
+      setState(() {
+        _cardType = null;
+      });
+      return;
+    }
+
+    if (cardNumber.startsWith('4')) {
+      setState(() {
+        _cardType = 'visa';
+      });
+    } else if (cardNumber.startsWith('5')) {
+      setState(() {
+        _cardType = 'mastercard';
+      });
+    } else if (cardNumber.startsWith('3')) {
+      setState(() {
+        _cardType = 'amex';
+      });
+    } else {
+      setState(() {
+        _cardType = null;
+      });
+    }
+  }
+
+  Widget _getCardTypeIcon() {
+    if (_cardType == null) {
+      return const SizedBox(width: 32, height: 32);
+    }
+
+    return Image.asset(
+      'assets/$_cardType.png',
+      width: 32,
+      height: 32,
+    );
+  }
+
+  bool _isValidCardNumber(String? value) {
+    if (value == null || value.isEmpty) {
+      return false;
+    }
+
+    // Remove spaces
+    final cardNumber = value.replaceAll(' ', '');
+
+    // Check if it's numeric and has correct length
+    if (!RegExp(r'^[0-9]{13,19}$').hasMatch(cardNumber)) {
+      return false;
+    }
+
+    // Luhn algorithm (checksum)
+    int sum = 0;
+    bool alternate = false;
+    for (int i = cardNumber.length - 1; i >= 0; i--) {
+      int digit = int.parse(cardNumber[i]);
+
+      if (alternate) {
+        digit *= 2;
+        if (digit > 9) {
+          digit -= 9;
+        }
+      }
+
+      sum += digit;
+      alternate = !alternate;
+    }
+
+    return sum % 10 == 0;
+  }
+
+  bool _isValidExpiryDate(String? value) {
+    if (value == null || value.isEmpty) {
+      return false;
+    }
+
+    // Check format
+    if (!RegExp(r'^(0[1-9]|1[0-2])\/([0-9]{2})$').hasMatch(value)) {
+      return false;
+    }
+
+    final parts = value.split('/');
+    final month = int.parse(parts[0]);
+    final year = int.parse('20${parts[1]}');
+
+    // Create expiry date (last day of month)
+    final now = DateTime.now();
+    final expiryDate = DateTime(year, month + 1, 0);
+
+    // Check if card is not expired
+    return expiryDate.isAfter(now);
+  }
+
+  bool _isValidCVV(String? value) {
+    if (value == null || value.isEmpty) {
+      return false;
+    }
+
+    // For Amex, CVV should be 4 digits, for others 3 digits
+    if (_cardType == 'amex') {
+      return RegExp(r'^[0-9]{4}$').hasMatch(value);
+    } else {
+      return RegExp(r'^[0-9]{3}$').hasMatch(value);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +436,11 @@ class _PaymentPageState extends State<PaymentPage> {
       child: TextFormField(
         controller: _cardNumberController,
         keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          CardNumberInputFormatter(),
+          LengthLimitingTextInputFormatter(19), // 16 digits + 3 spaces
+        ],
         decoration: InputDecoration(
           labelText: 'Card Number',
           labelStyle: GoogleFonts.poppins(
@@ -259,11 +455,7 @@ class _PaymentPageState extends State<PaymentPage> {
           ),
           suffixIcon: Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: Image.asset(
-              'assets/visa.png',
-              width: 32,
-              height: 32,
-            ),
+            child: _getCardTypeIcon(),
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
@@ -276,6 +468,9 @@ class _PaymentPageState extends State<PaymentPage> {
         validator: (value) {
           if (value == null || value.isEmpty) {
             return 'Please enter your card number';
+          }
+          if (!_isValidCardNumber(value)) {
+            return 'Invalid card number';
           }
           return null;
         },
@@ -298,6 +493,7 @@ class _PaymentPageState extends State<PaymentPage> {
       ),
       child: TextFormField(
         controller: _cardholderNameController,
+        textCapitalization: TextCapitalization.words,
         decoration: InputDecoration(
           labelText: 'Cardholder Name',
           labelStyle: GoogleFonts.poppins(
@@ -322,6 +518,9 @@ class _PaymentPageState extends State<PaymentPage> {
           if (value == null || value.isEmpty) {
             return 'Please enter your name';
           }
+          if (value.trim().split(' ').length < 2) {
+            return 'Please enter your full name';
+          }
           return null;
         },
       ),
@@ -343,7 +542,12 @@ class _PaymentPageState extends State<PaymentPage> {
       ),
       child: TextFormField(
         controller: _expirationDateController,
-        keyboardType: TextInputType.datetime,
+        keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          ExpiryDateInputFormatter(),
+          LengthLimitingTextInputFormatter(5), // MM/YY
+        ],
         decoration: InputDecoration(
           labelText: 'Expiry Date',
           labelStyle: GoogleFonts.poppins(
@@ -368,6 +572,9 @@ class _PaymentPageState extends State<PaymentPage> {
           if (value == null || value.isEmpty) {
             return 'Required';
           }
+          if (!_isValidExpiryDate(value)) {
+            return 'Invalid date';
+          }
           return null;
         },
       ),
@@ -391,13 +598,17 @@ class _PaymentPageState extends State<PaymentPage> {
         controller: _cvvController,
         obscureText: _obscureCVV,
         keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(_cardType == 'amex' ? 4 : 3),
+        ],
         decoration: InputDecoration(
           labelText: 'CVV',
           labelStyle: GoogleFonts.poppins(
             color: Colors.black54,
             fontSize: 14,
           ),
-          hintText: '•••',
+          hintText: _cardType == 'amex' ? '••••' : '•••',
           hintStyle: GoogleFonts.poppins(color: Colors.black38),
           prefixIcon: const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -426,6 +637,9 @@ class _PaymentPageState extends State<PaymentPage> {
         validator: (value) {
           if (value == null || value.isEmpty) {
             return 'Required';
+          }
+          if (!_isValidCVV(value)) {
+            return 'Invalid CVV';
           }
           return null;
         },

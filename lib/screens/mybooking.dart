@@ -49,10 +49,12 @@ class _MyBookingState extends State<MyBooking> {
 
     // Add new booking if it exists
     if (widget.newBooking != null) {
-      _comeFromPaymentSuccess = true; // Set flag to indicate we came from payment success
+      _comeFromPaymentSuccess =
+      true; // Set flag to indicate we came from payment success
 
       // Get existing bookings before adding new one
-      List<BookingModel> existingBookings = _bookingService.getUpcomingBookings();
+      List<BookingModel> existingBookings = _bookingService
+          .getUpcomingBookings();
 
       // Check if booking already exists
       bool isDuplicate = existingBookings.any((booking) =>
@@ -106,6 +108,42 @@ class _MyBookingState extends State<MyBooking> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => Dashboard(title: 'Dashboard'),
+          ),
+        );
+      }
+    }
+  }
+
+  // View booking details with refresh handling
+  Future<void> _viewBookingDetails(BookingModel booking) async {
+    // Navigate to booking details and await result
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            BookingDetailPage(
+              booking: booking,
+            ),
+      ),
+    );
+
+    // Check if we need to refresh the bookings
+    if (result != null && result is Map && result['refreshBookings'] == true) {
+      // Reload bookings from the service
+      await _loadBookings();
+
+      // Switch to past bookings tab if a booking was cancelled
+      if (result['bookingCancelled'] == true) {
+        setState(() {
+          _selectedIndex = 1; // Switch to Past tab
+        });
+
+        // Inform the user where to find the cancelled booking
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Booking has been moved to Past Bookings'),
+            duration: Duration(seconds: 2),
+            backgroundColor: accentColor,
           ),
         );
       }
@@ -249,6 +287,10 @@ class _MyBookingState extends State<MyBooking> {
   }
 
   Widget _buildConciseBookingCard(BookingModel booking, bool isUpcoming) {
+    // Determine if this is a cancelled booking
+    // Using our special indicator where amountPaid = -1.0
+    final bool isCancelled = !isUpcoming && booking.amountPaid == -1.0;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       elevation: 2,
@@ -256,13 +298,16 @@ class _MyBookingState extends State<MyBooking> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: isUpcoming
-              ? accentColor.withAlpha(51) // 0.2 opacity equivalent
-              : Colors.grey.withAlpha(51), // 0.2 opacity equivalent
+              ? accentColor.withAlpha(51)
+              : isCancelled
+              ? Colors.red.withAlpha(51) // Red border for cancelled bookings
+              : Colors.grey.withAlpha(51),
           width: 1,
         ),
       ),
       child: InkWell(
         onTap: () async {
+          // Navigate to details page and wait for result
           final result = await Navigator.push(
               context,
               MaterialPageRoute(
@@ -270,9 +315,21 @@ class _MyBookingState extends State<MyBooking> {
               )
           );
 
-          // If booking was modified or cancelled, refresh the list
-          if (result == true) {
-            _loadBookings();
+          // Refresh lists when we get back from details
+          if (result != null) {
+            // Reload from scratch to ensure fresh data
+            await _bookingService.init();
+            setState(() {
+              upcomingBookings = _bookingService.getUpcomingBookings();
+              pastBookings = _bookingService.getPastBookings();
+            });
+
+            // Switch to past tab if cancelled
+            if (result is Map && result['bookingCancelled'] == true) {
+              setState(() {
+                _selectedIndex = 1;
+              });
+            }
           }
         },
         borderRadius: BorderRadius.circular(12),
@@ -286,7 +343,9 @@ class _MyBookingState extends State<MyBooking> {
                 height: 50,
                 decoration: BoxDecoration(
                   color: isUpcoming
-                      ? accentColor.withAlpha(26) // 0.1 opacity equivalent
+                      ? accentColor.withAlpha(26)
+                      : isCancelled
+                      ? Colors.red.withAlpha(26) // Light red for cancelled
                       : surfaceColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -298,14 +357,22 @@ class _MyBookingState extends State<MyBooking> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: isUpcoming ? accentColor : secondaryTextColor,
+                        color: isUpcoming
+                            ? accentColor
+                            : isCancelled
+                            ? Colors.red.shade700 // Red text for cancelled
+                            : secondaryTextColor,
                       ),
                     ),
                     Text(
                       DateFormat("MMM").format(booking.date),
                       style: TextStyle(
                         fontSize: 12,
-                        color: isUpcoming ? accentColor : secondaryTextColor,
+                        color: isUpcoming
+                            ? accentColor
+                            : isCancelled
+                            ? Colors.red.shade700 // Red text for cancelled
+                            : secondaryTextColor,
                       ),
                     ),
                   ],
@@ -371,19 +438,30 @@ class _MyBookingState extends State<MyBooking> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: isUpcoming
-                          ? accentColor.withAlpha(26) // 0.1 opacity equivalent
-                          : Colors.grey.withAlpha(26), // 0.1 opacity equivalent
+                          ? accentColor.withAlpha(26)
+                          : isCancelled
+                          ? Colors.red.withAlpha(26) // Light red for cancelled
+                          : Colors.grey.withAlpha(26),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      isUpcoming ? 'Upcoming' : 'Past',
+                      isUpcoming
+                          ? 'Upcoming'
+                          : isCancelled
+                          ? 'Cancelled' // Show Cancelled text
+                          : 'Completed',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: isUpcoming ? accentColor : Colors.grey[600],
+                        color: isUpcoming
+                            ? accentColor
+                            : isCancelled
+                            ? Colors.red.shade700 // Red text for cancelled
+                            : Colors.grey[600],
                       ),
                     ),
                   ),

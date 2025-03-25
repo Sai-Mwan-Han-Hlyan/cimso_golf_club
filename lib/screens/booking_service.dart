@@ -104,8 +104,13 @@ class BookingService {
     }
   }
 
-  // Cancel a booking
+  // FIXED: Cancel a booking - move from upcoming to past
+  // FIXED: Cancel a booking - move from upcoming to past with cancelled status
   Future<void> cancelBooking(BookingModel booking) async {
+    // Ensure we're initialized
+    await init();
+
+    // Find the booking in upcoming bookings
     final index = _upcomingBookings.indexWhere(
             (b) => b.courseName == booking.courseName &&
             b.date.isAtSameMomentAs(booking.date) &&
@@ -113,8 +118,33 @@ class BookingService {
     );
 
     if (index != -1) {
-      _upcomingBookings.removeAt(index);
+      // Remove from upcoming bookings
+      final cancelledBooking = _upcomingBookings.removeAt(index);
+
+      // Make a clone of the booking with isUpcoming = false
+      // We'll set amountPaid to -1.0 as a special indicator that this booking was cancelled
+      // This is a workaround since we don't have a dedicated status field
+      final pastBooking = BookingModel(
+        courseName: cancelledBooking.courseName,
+        date: cancelledBooking.date,
+        time: cancelledBooking.time,
+        players: cancelledBooking.players,
+        carts: cancelledBooking.carts,
+        isUpcoming: false, // Mark it as not upcoming
+        amountPaid: -1.0, // Special value to indicate cancellation
+      );
+
+      // Add to past bookings
+      _pastBookings.insert(0, pastBooking);
+
+      // Save changes to persistent storage
       await saveBookings();
+
+      print("Booking cancelled and moved to past bookings");
+      print("Upcoming bookings count: ${_upcomingBookings.length}");
+      print("Past bookings count: ${_pastBookings.length}");
+    } else {
+      print("Booking not found in upcoming bookings");
     }
   }
 
@@ -151,5 +181,3 @@ class BookingService {
     await saveBookings();
   }
 }
-
-

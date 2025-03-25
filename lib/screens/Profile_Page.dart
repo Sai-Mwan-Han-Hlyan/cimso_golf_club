@@ -3,15 +3,24 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
-  final Function(String, String) onProfileUpdate;
+  // Updated callback to include all profile fields
+  final Function(String, String, String, String?, DateTime?, File?) onProfileUpdate;
   final String initialName;
   final String initialEmail;
+  final String? initialPhone;
+  final String? initialGender;
+  final DateTime? initialDob;
+  final File? initialImage;
 
   const ProfilePage({
     Key? key,
     required this.onProfileUpdate,
     required this.initialName,
     required this.initialEmail,
+    this.initialPhone,
+    this.initialGender,
+    this.initialDob,
+    this.initialImage,
   }) : super(key: key);
 
   @override
@@ -22,9 +31,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   late TextEditingController nameController;
   late TextEditingController emailController;
   late TextEditingController phoneController;
-  String? gender; // Changed to null
-  DateTime? selectedDate; // Changed to null
-  String selectedCountryCode = 'US +1';
+  String? gender;
+  DateTime? selectedDate;
+  String selectedCountryCode = 'TH +66 (Thailand)'; // Changed default to Thailand
   late AnimationController _buttonAnimationController;
   late Animation<double> _buttonAnimation;
   bool _isEditMode = false;
@@ -51,7 +60,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     'JP +81',
     'KR +82',
     'RU +7',
-
     'SG +65',
     'MY +60',
     'NZ +64',
@@ -70,7 +78,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     // Initialize controllers with the passed values
     nameController = TextEditingController(text: widget.initialName);
     emailController = TextEditingController(text: widget.initialEmail);
-    phoneController = TextEditingController(text: ''); // Set to empty
+    phoneController = TextEditingController(text: widget.initialPhone ?? '');
+    gender = widget.initialGender;
+    selectedDate = widget.initialDob;
+    _imageFile = widget.initialImage;
 
     _buttonAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -128,8 +139,15 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   }
 
   void _saveProfile() {
-    // Update the parent widget with new values
-    widget.onProfileUpdate(nameController.text, emailController.text);
+    // Update the parent widget with all profile values
+    widget.onProfileUpdate(
+      nameController.text,
+      emailController.text,
+      phoneController.text,
+      gender,
+      selectedDate,
+      _imageFile,
+    );
 
     // Show success message
     ScaffoldMessenger.of(context).showSnackBar(

@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 import 'dart:math'; // For calculating time difference
 import 'booking_model.dart';
 import 'booking_service.dart';
-import 'payment.dart'; // Assuming there is a payment page
+import 'payment.dart'; // Your existing payment page
+import 'payment_success.dart'; // Your existing payment success page
+import 'reschedule.dart'; // The reschedule page
 
 class BookingDetailPage extends StatefulWidget {
   final BookingModel booking;
@@ -40,17 +42,53 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   void initState() {
     super.initState();
     _initializeBookingState();
+
+    // If coming from payment success, update the booking
+    if (widget.fromPaymentSuccess) {
+      _updateBookingAfterPayment();
+    }
+  }
+
+  // Method to update booking after payment success
+  Future<void> _updateBookingAfterPayment() async {
+    // Create a new booking with payment info
+    final updatedBooking = BookingModel(
+      courseName: widget.booking.courseName,
+      date: widget.booking.date,
+      time: widget.booking.time,
+      players: widget.booking.players,
+      carts: widget.booking.carts,
+      isUpcoming: widget.booking.isUpcoming,
+      amountPaid: widget.booking.amountPaid, // This should be set by the payment success page
+    );
+
+    // Update the booking in the service
+    await _bookingService.updateBooking(widget.booking, updatedBooking);
+
+    // Update state to reflect payment
+    setState(() {
+      _isPaid = true;
+    });
   }
 
   void _initializeBookingState() {
+    // Check if booking is cancelled (using our special indicator)
+    final bool isCancelled = widget.booking.amountPaid == -1.0;
+
     // Check if booking is paid based on amountPaid or fromPaymentSuccess flag
-    _isPaid = widget.booking.amountPaid != null || widget.fromPaymentSuccess;
+    // For cancelled bookings, we'll consider them "paid" so they don't show payment buttons
+    _isPaid = widget.booking.amountPaid != null || widget.fromPaymentSuccess || isCancelled;
 
     // Determine if booking can be cancelled (more than 24 hours before tee time)
-    final now = DateTime.now();
-    final bookingDateTime = _combineDateTime(widget.booking.date, widget.booking.time);
-    final difference = bookingDateTime.difference(now);
-    _canCancel = difference.inHours > 24;
+    // For cancelled bookings, this should always be false
+    if (isCancelled) {
+      _canCancel = false;
+    } else {
+      final now = DateTime.now();
+      final bookingDateTime = _combineDateTime(widget.booking.date, widget.booking.time);
+      final difference = bookingDateTime.difference(now);
+      _canCancel = difference.inHours > 24;
+    }
 
     // Determine if advance payment is required (unpaid booking)
     _requiresAdvancePayment = !_isPaid;
@@ -70,9 +108,53 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     return DateTime(date.year, date.month, date.day, hour, minute);
   }
 
+  // Add a new helper method to check if the booking is cancelled
+  bool _isBookingCancelled() {
+    return widget.booking.amountPaid == -1.0;
+  }
+
+  // Fixed _buildDetailItem method without recursive calls
+  Widget _buildDetailItem(String label, String value, {bool highlight = false, bool warningColor = false, bool isCancelled = false}) {
+    // If this is a cancelled booking and we're displaying status
+    if (_isBookingCancelled() && (label == 'Payment Status' || label == 'Booking Status')) {
+      value = 'Cancelled';
+      highlight = true;
+      isCancelled = true;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: secondaryTextColor,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: highlight || warningColor || isCancelled ? FontWeight.w600 : FontWeight.w400,
+              color: isCancelled
+                  ? Colors.red  // Red color for cancelled status
+                  : (warningColor
+                  ? this.warningColor
+                  : (highlight ? accentColor : textColor)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isUpcoming = widget.booking.isUpcoming;
+    final bool isCancelled = _isBookingCancelled();
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -93,32 +175,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
           color: textColor,
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          if (isUpcoming)
-            PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert, color: textColor),
-              onSelected: (value) {
-                if (value == 'cancel') {
-                  _isPaid ? _showRefundDialog(context) : _showCancelDialog(context);
-                } else if (value == 'reschedule') {
-                  _showRescheduleDialog();
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'reschedule',
-                  child: Text('Reschedule'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'cancel',
-                  child: Text(
-                      _isPaid ? 'Request Refund' : 'Cancel Booking',
-                      style: TextStyle(color: errorColor)
-                  ),
-                ),
-              ],
-            ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -128,20 +184,20 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-              color: _getStatusBannerColor(),
+              color: isCancelled ? Colors.red.withOpacity(0.1) : _getStatusBannerColor(),
               child: Row(
                 children: [
                   Icon(
-                    _getStatusIcon(),
-                    color: _getStatusIconColor(),
+                    isCancelled ? Icons.cancel : _getStatusIcon(),
+                    color: isCancelled ? Colors.red : _getStatusIconColor(),
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    _getStatusText(),
+                    isCancelled ? 'Cancelled Booking' : _getStatusText(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: _getStatusIconColor(),
+                      color: isCancelled ? Colors.red : _getStatusIconColor(),
                     ),
                   ),
                 ],
@@ -216,33 +272,30 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   if (widget.booking.carts != null)
                     _buildDetailItem('Carts', '${widget.booking.carts} ${widget.booking.carts == 1 ? 'Cart' : 'Carts'}'),
 
-                  if (widget.booking.amountPaid != null)
+                  if (widget.booking.amountPaid != null && widget.booking.amountPaid != -1.0)
                     _buildDetailItem(
                       'Amount Paid',
                       '฿ ${widget.booking.amountPaid!.toStringAsFixed(2)}',
                       highlight: true,
                     ),
 
-                  if (_isPaid)
-                    _buildDetailItem(
-                      'Payment Status',
-                      'Paid',
-                      highlight: true,
-                    )
-                  else
-                    _buildDetailItem(
-                      'Payment Status',
-                      'Unpaid',
-                      highlight: false,
-                      warningColor: true,
-                    ),
+                  // Payment Status - with special handling for cancelled bookings
+                  _buildDetailItem(
+                    'Payment Status',
+                    isCancelled ? 'Cancelled' : (_isPaid ? 'Paid' : 'Unpaid'),
+                    highlight: _isPaid,
+                    warningColor: !_isPaid && !isCancelled,
+                    isCancelled: isCancelled,
+                  ),
 
                   const SizedBox(height: 8),
 
+                  // Booking Status - with special handling for cancelled bookings
                   _buildDetailItem(
                     'Booking Status',
-                    isUpcoming ? 'Confirmed' : 'Completed',
-                    highlight: isUpcoming,
+                    isCancelled ? 'Cancelled' : (isUpcoming ? 'Confirmed' : 'Completed'),
+                    highlight: isUpcoming && !isCancelled,
+                    isCancelled: isCancelled,
                   ),
                 ],
               ),
@@ -250,8 +303,8 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
             const Divider(height: 1),
 
-            // Payment reminder for unpaid bookings
-            if (isUpcoming && !_isPaid)
+            // Payment reminder for unpaid bookings (not shown for cancelled bookings)
+            if (isUpcoming && !_isPaid && !isCancelled)
               Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Container(
@@ -331,31 +384,13 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               ),
             ),
 
-            // Actions for upcoming bookings
-            if (isUpcoming)
+            // Actions for upcoming bookings - not shown for cancelled bookings
+            if (isUpcoming && !isCancelled)
               Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        // Add to calendar functionality here
-                      },
-                      icon: const Icon(Icons.calendar_today),
-                      label: const Text('Add to Calendar'),
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: accentColor,
-                        backgroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(color: accentColor),
-                        ),
-                      ),
-                    ),
-
                     if (!_isPaid) ...[
-                      const SizedBox(height: 12),
                       ElevatedButton.icon(
                         onPressed: () => _navigateToPayment(),
                         icon: const Icon(Icons.payment),
@@ -369,9 +404,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
                     ],
 
-                    const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: () => _showRescheduleDialog(),
                       icon: const Icon(Icons.edit_calendar),
@@ -388,38 +423,91 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
                     const SizedBox(height: 12),
                     TextButton.icon(
-                      onPressed: _canCancel
-                          ? () => _isPaid
-                          ? _showRefundDialog(context)
-                          : _showCancelDialog(context)
-                          : null,
-                      icon: Icon(_isPaid ? Icons.money : Icons.cancel_outlined,
-                          color: _canCancel ? errorColor : Colors.grey),
+                      // Always allow interaction, handle conditions inside the handler
+                      onPressed: () {
+                        if (_isPaid) {
+                          // Handle refund request
+                          if (_canCancel) {
+                            _showRefundDialog(context);
+                          } else {
+                            // Show explanation for late refund
+                            _showLateCancellationDialog(
+                                'Refund Not Available',
+                                'Refunds are only available more than 24 hours before your tee time. Please contact customer service for assistance.'
+                            );
+                          }
+                        } else {
+                          // Handle booking cancellation
+                          if (_canCancel) {
+                            _showCancelDialog(context);
+                          } else {
+                            // Show explanation for late cancellation
+                            _showLateCancellationDialog(
+                                'Late Cancellation',
+                                'Cancellations less than 24 hours before tee time may be subject to a cancellation fee. Do you wish to proceed?',
+                                showProceedButton: true,
+                                onProceed: () => _showCancelDialog(context)
+                            );
+                          }
+                        }
+                      },
+                      icon: Icon(
+                        _isPaid ? Icons.money : Icons.cancel_outlined,
+                        color: _isPaid ? errorColor : Colors.red[700],
+                      ),
                       label: Text(
                         _isPaid ? 'Request Refund' : 'Cancel Booking',
                         style: TextStyle(
-                          color: _canCancel ? errorColor : Colors.grey,
+                          color: _isPaid ? errorColor : Colors.red[700],
                         ),
                       ),
                       style: TextButton.styleFrom(
                         minimumSize: const Size(double.infinity, 50),
                       ),
                     ),
+                  ],
+                ),
+              ),
 
-                    if (!_canCancel)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          'Cancellation is only available more than 24 hours before tee time',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: secondaryTextColor,
-                            fontStyle: FontStyle.italic,
+            // For cancelled bookings, show cancellation message
+            if (isCancelled)
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Booking Cancelled',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.red,
+                            ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'This booking has been cancelled and is no longer valid.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: textColor,
+                          height: 1.5,
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -455,72 +543,44 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     return 'Confirmed Booking';
   }
 
-  Widget _buildDetailItem(String label, String value, {bool highlight = false, bool warningColor = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: secondaryTextColor,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: highlight || warningColor ? FontWeight.w600 : FontWeight.w400,
-              color: warningColor
-                  ? this.warningColor
-                  : (highlight ? accentColor : textColor),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _navigateToPayment() {
     // Navigate to payment page with booking details
-    // This is a placeholder - you would need to implement the actual payment page
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => PaymentPage(
-          booking: widget.booking,
-          onPaymentComplete: (amountPaid) async {
-            // Create a new booking with payment info and update in service
-            final updatedBooking = BookingModel(
-              courseName: widget.booking.courseName,
-              date: widget.booking.date,
-              time: widget.booking.time,
-              players: widget.booking.players,
-              carts: widget.booking.carts,
-              isUpcoming: widget.booking.isUpcoming,
-              amountPaid: amountPaid,
-            );
-
-            // Update the booking in the service
-            await _bookingService.updateBooking(widget.booking, updatedBooking);
-
-            // Update state to reflect payment
-            setState(() {
-              _isPaid = true;
-            });
-          },
+          course: widget.booking.courseName,
+          date: widget.booking.date,
+          time: widget.booking.time,
+          players: widget.booking.players,
+          carts: widget.booking.carts ?? 0,
         ),
       ),
     );
   }
 
   void _showRescheduleDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Reschedule functionality coming soon'),
-        backgroundColor: accentColor,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReschedulePage(
+          booking: widget.booking,
+          onRescheduleComplete: (updatedBooking) async {
+            // Update state with the new booking information
+            setState(() {
+              // Update any necessary state variables
+              _initializeBookingState();
+            });
+
+            // Show success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Booking successfully rescheduled'),
+                backgroundColor: accentColor,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -545,16 +605,33 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     );
 
     if (confirmed == true) {
-      await _bookingService.cancelBooking(widget.booking);
+      try {
+        // Use the updated cancelBooking method which moves the booking to past bookings
+        await _bookingService.cancelBooking(widget.booking);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Booking cancelled successfully'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        Navigator.pop(context, true); // Return true to indicate booking was cancelled
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Booking cancelled successfully'),
+              backgroundColor: Colors.red,
+            ),
+          );
+
+          // Return to previous screen with refresh signal and indication to switch tabs
+          Navigator.pop(context, {
+            'refreshBookings': true,
+            'bookingCancelled': true,
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error cancelling booking: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -602,84 +679,73 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     );
 
     if (confirmed == true) {
-      await _bookingService.cancelBooking(widget.booking);
+      try {
+        // Use the updated cancelBooking method which moves the booking to past bookings
+        await _bookingService.cancelBooking(widget.booking);
 
-      if (mounted) {
-        // Show refund confirmation dialog
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.check_circle, color: accentColor),
-                const SizedBox(width: 8),
-                const Text('Refund Initiated'),
+        if (mounted) {
+          // Show refund confirmation dialog
+          await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.check_circle, color: accentColor),
+                  const SizedBox(width: 8),
+                  const Text('Refund Initiated'),
+                ],
+              ),
+              content: const Text(
+                'Your refund request has been processed. The booking has been cancelled, and your refund will be processed within 3-5 business days.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('OK', style: TextStyle(color: accentColor)),
+                ),
               ],
             ),
-            content: const Text(
-              'Your refund request has been processed. The booking has been cancelled, and your refund will be processed within 3-5 business days.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('OK', style: TextStyle(color: accentColor)),
-              ),
-            ],
-          ),
-        );
+          );
 
-        Navigator.pop(context, true); // Return true to indicate booking was cancelled
+          // Return to previous screen with refresh signal and indication to switch tabs
+          Navigator.pop(context, {
+            'refreshBookings': true,
+            'bookingCancelled': true,
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error processing refund: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
-}
 
-// Placeholder for the PaymentPage class
-class PaymentPage extends StatelessWidget {
-  final BookingModel booking;
-  final Function(double) onPaymentComplete;
-
-  const PaymentPage({
-    Key? key,
-    required this.booking,
-    required this.onPaymentComplete,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    // Calculate the amount to pay based on players and carts
-    // This is a placeholder - you would implement actual payment logic
-    final double baseRate = 1500.0; // Example base rate per player
-    final double cartRate = 500.0; // Example rate per cart
-    final double totalAmount = (baseRate * booking.players) +
-        ((booking.carts ?? 0) * cartRate);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Complete Payment'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Total Amount: ฿${totalAmount.toStringAsFixed(2)}'),
-            const SizedBox(height: 24),
-            ElevatedButton(
+  Future<void> _showLateCancellationDialog(String title, String message, {bool showProceedButton = false, Function? onProceed}) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          if (showProceedButton && onProceed != null)
+            TextButton(
               onPressed: () {
-                // This is where you would implement the actual payment processing
-                // For now, we'll just simulate a successful payment
-                onPaymentComplete(totalAmount);
-
-                // Show success and navigate back
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Payment completed successfully!'))
-                );
-                Navigator.pop(context);
+                Navigator.of(context).pop();
+                onProceed();
               },
-              child: const Text('Process Payment'),
+              child: const Text('Proceed Anyway', style: TextStyle(color: Colors.red)),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

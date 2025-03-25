@@ -3,6 +3,7 @@ import 'package:cimso_golf_booking/screens/dashboard.dart';
 import 'package:cimso_golf_booking/screens/create_account.dart';
 import 'package:cimso_golf_booking/screens/login.dart';
 import 'package:cimso_golf_booking/screens/booking.dart';
+import 'package:cimso_golf_booking/screens/splash_screen.dart'; // Import the new splash screen
 
 void main() {
   runApp(const MyApp());
@@ -20,8 +21,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      initialRoute: '/login', // Start at login, change if needed
+      initialRoute: '/', // Changed to root for splash screen
       routes: {
+        '/': (context) => const SplashScreen(), // Add splash screen as root route
         '/booking': (context) => const BookingPage(),
         '/login': (context) => const Login(),
         '/create_account': (context) => const CreateAccount(),

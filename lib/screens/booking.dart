@@ -1,9 +1,8 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'checkout.dart';
+import 'tee_time_service.dart'; // Import the service
 
 class BookingPage extends StatefulWidget {
   const BookingPage({super.key});
@@ -16,8 +15,11 @@ class _BookingPageState extends State<BookingPage> {
   int selectedPlayers = 1;
   int selectedCarts = 1;
   String selectedCourse = '9H course';
-  String selectedTime = '11:00 AM';
+  String selectedTime = '';
   DateTime selectedDate = DateTime.now();
+
+  // Service instances
+  final TeeTimeService _teeTimeService = TeeTimeService();
 
   // Modern color scheme to match dashboard
   final Color primaryColor = const Color(0xFF2E7D32);
@@ -36,12 +38,41 @@ class _BookingPageState extends State<BookingPage> {
     '8:00 AM', '9:30 AM', '11:00 AM', '12:30 PM', '2:00 PM', '3:30 PM', '5:00 PM'
   ];
 
+  List<String> allTimes = [];
   List<String> availableTimes = [];
 
   @override
   void initState() {
     super.initState();
-    availableTimes = availableTimes9H;
+    allTimes = availableTimes9H;
+    _initializeBookingPage();
+  }
+
+  Future<void> _initializeBookingPage() async {
+    // Initialize the tee time service
+    await _teeTimeService.init();
+
+    // Load available times
+    _updateAvailableTimes();
+  }
+
+  void _updateAvailableTimes() {
+    // Get all possible times based on course selection
+    allTimes = selectedCourse == '9H course' ? availableTimes9H : availableTimes18H;
+
+    // Filter times based on availability
+    setState(() {
+      availableTimes = _teeTimeService.getAvailableTimes(
+          selectedDate,
+          selectedCourse,
+          allTimes
+      );
+
+      // If no time is selected or the selected time is not available, select the first available time
+      if (selectedTime.isEmpty || !availableTimes.contains(selectedTime)) {
+        selectedTime = availableTimes.isNotEmpty ? availableTimes.first : '';
+      }
+    });
   }
 
   @override
@@ -78,8 +109,6 @@ class _BookingPageState extends State<BookingPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Course header with image
-
-            // Replace the separate Image.asset and Container with a single Container
             Container(
               height: 180,
               width: double.infinity,
@@ -179,7 +208,7 @@ class _BookingPageState extends State<BookingPage> {
                           color: Colors.grey.withOpacity(0.3),
                         ),
                       ),
-                      _buildStepIndicator(2, false, "Review"),
+                      _buildStepIndicator(2, false, "Checkout"),
                       Expanded(
                         child: Container(
                           height: 2,
@@ -338,7 +367,7 @@ class _BookingPageState extends State<BookingPage> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: selectedTime.isEmpty ? null : () {
                         // Calculate the price for the selected course
                         double coursePrice =
                         selectedCourse == '9H course' ? 1500 : 2500;
@@ -370,9 +399,11 @@ class _BookingPageState extends State<BookingPage> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        // Disable the button if no time is selected
+                        disabledBackgroundColor: Colors.grey.shade300,
                       ),
                       child: Text(
-                        'Continue to Review',
+                        'Continue to Checkout',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -504,6 +535,7 @@ class _BookingPageState extends State<BookingPage> {
                           setState(() {
                             selectedDate = picked;
                           });
+                          _updateAvailableTimes();
                         }
                       },
                     ),
@@ -528,6 +560,7 @@ class _BookingPageState extends State<BookingPage> {
                       setState(() {
                         selectedDate = date;
                       });
+                      _updateAvailableTimes();
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
@@ -642,13 +675,8 @@ class _BookingPageState extends State<BookingPage> {
       onTap: () {
         setState(() {
           selectedCourse = course;
-          availableTimes = selectedCourse == '9H course' ? availableTimes9H : availableTimes18H;
-
-          // Ensure selectedTime is valid after switching courses
-          if (!availableTimes.contains(selectedTime)) {
-            selectedTime = availableTimes.first;
-          }
         });
+        _updateAvailableTimes();
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -708,6 +736,40 @@ class _BookingPageState extends State<BookingPage> {
   }
 
   Widget _buildTimeSelection() {
+    if (availableTimes.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.event_busy, color: Colors.red[300], size: 40),
+              const SizedBox(height: 12),
+              Text(
+                'No available tee times for this selection',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: textSecondaryColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: cardColor,

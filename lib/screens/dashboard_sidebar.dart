@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 // Update this import path to match your project structure
 import 'auth_service.dart';
+import 'notification.dart';  // Import notification screen
 
 class DashboardSidebar extends StatelessWidget {
   final String userName;
@@ -79,8 +80,21 @@ class DashboardSidebar extends StatelessWidget {
               isSelected: selectedIndex == 2,
               onTap: onBookingsTap
           ),
-          _buildDrawerItem(Icons.notifications_outlined, 'Notifications'),
-          _buildDrawerItem(Icons.credit_card_outlined, 'Payment Methods'),
+          _buildDrawerItem(
+              Icons.notifications_outlined,
+              'Notifications',
+              isSelected: selectedIndex == 3,
+              onTap: () {
+                // Close the drawer first
+                Navigator.pop(context);
+                // Navigate to notification screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const NotificationScreen()),
+                );
+              }
+          ),
+
           const Divider(height: 1),
           _buildDrawerItem(Icons.settings_outlined, 'Settings'),
           _buildDrawerItem(Icons.help_outline, 'Help & Support'),

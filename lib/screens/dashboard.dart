@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:cimso_golf_booking/screens/booking.dart';
 import 'package:cimso_golf_booking/screens/mybooking.dart';
 import 'package:cimso_golf_booking/screens/Profile_Page.dart';
@@ -7,6 +8,22 @@ import 'package:cimso_golf_booking/screens/GolfCourseDetailPage.dart';
 import 'auth_service.dart';
 import 'dashboard_sidebar.dart';
 import 'dashboard_bottombar.dart';
+import 'notification.dart';
+
+// Model for golf courses
+class GolfCourse {
+  final String name;
+  final String location;
+  final double rating;
+  final String distance;
+
+  GolfCourse({
+    required this.name,
+    required this.location,
+    required this.rating,
+    required this.distance,
+  });
+}
 
 class Dashboard extends StatefulWidget {
   final String title;
@@ -26,9 +43,33 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
   late AnimationController _animationController;
   late Animation<double> _buttonAnimation;
 
-  // User profile data
+  // User profile data - expanded to include all profile fields
   String userName = 'William Dexter';
   String userEmail = 'willdex234@gmail.com';
+  String userPhone = '';
+  String? userGender;
+  DateTime? userDob;
+  File? userProfileImage;
+
+  // List of all golf courses
+  final List<GolfCourse> _allCourses = [
+    GolfCourse(
+      name: 'CIMSO Golf Club',
+      location: '54 Benar Ed, Beachoro',
+      rating: 4.8,
+      distance: '3.2 mi',
+    ),
+    GolfCourse(
+      name: 'Geo J Park Golf Course',
+      location: '4 Foe Ed, Joroeme',
+      rating: 4.5,
+      distance: '5.7 mi',
+    ),
+    // Add more courses as needed
+  ];
+
+  // List of filtered courses that will be displayed
+  late List<GolfCourse> _filteredCourses;
 
   @override
   void initState() {
@@ -44,26 +85,106 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
       ),
     );
 
+    // Initialize filtered courses with all courses
+    _filteredCourses = List.from(_allCourses);
+
+    // Add listener to search controller
+    _searchController.addListener(_performSearch);
+
     // Load user data when the dashboard initializes
     _loadUserData();
   }
 
-  // Load user data from AuthService
+  // Search functionality
+  void _performSearch() {
+    final query = _searchController.text.toLowerCase();
+
+    setState(() {
+      if (query.isEmpty) {
+        // If search is empty, show all courses
+        _filteredCourses = List.from(_allCourses);
+      } else {
+        // Filter courses based on name or location containing the query
+        _filteredCourses = _allCourses
+            .where((course) =>
+        course.name.toLowerCase().contains(query) ||
+            course.location.toLowerCase().contains(query))
+            .toList();
+      }
+    });
+  }
+
+  // Load user data from AuthService - updated to load all profile data
   Future<void> _loadUserData() async {
     final currentUser = await AuthService.getCurrentUser();
     if (currentUser != null && mounted) {
       setState(() {
         userName = currentUser.username;
         userEmail = currentUser.email;
+        userPhone = currentUser.phone ?? '';
+        userGender = currentUser.gender;
+        userDob = currentUser.dateOfBirth;
+
+        // Load profile image if path exists
+        if (currentUser.profileImagePath != null) {
+          AuthService.loadProfileImage(currentUser.profileImagePath)
+              .then((imageFile) {
+            if (imageFile != null && mounted) {
+              setState(() {
+                userProfileImage = imageFile;
+              });
+            }
+          });
+        }
       });
     }
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_performSearch);
     _searchController.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  // Method to navigate to profile page with proper callback
+  void _navigateToProfilePage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfilePage(
+          onProfileUpdate: (name, email, phone, gender, dob, image) async {
+            // Save the profile data to persistent storage
+            final success = await AuthService.updateUserProfile(
+              email: email,
+              name: name,
+              phone: phone,
+              gender: gender,
+              dateOfBirth: dob,
+              profileImage: image,
+            );
+
+            if (success && mounted) {
+              setState(() {
+                userName = name;
+                userEmail = email;
+                userPhone = phone;
+                userGender = gender;
+                userDob = dob;
+                userProfileImage = image;
+              });
+            }
+          },
+          initialName: userName,
+          initialEmail: userEmail,
+          initialPhone: userPhone,
+          initialGender: userGender,
+          initialDob: userDob,
+          initialImage: userProfileImage,
+        ),
+      ),
+    );
   }
 
   void _onItemTapped(int index) {
@@ -74,22 +195,8 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
         MaterialPageRoute(builder: (context) => const MyBooking()),
       );
     } else if (index == 2) {
-      // Navigate to Profile page
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProfilePage(
-            onProfileUpdate: (name, email) {
-              setState(() {
-                userName = name;
-                userEmail = email;
-              });
-            },
-            initialName: userName,
-            initialEmail: userEmail,
-          ),
-        ),
-      );
+      // Navigate to Profile page with updated callback
+      _navigateToProfilePage();
     } else {
       setState(() {
         _selectedIndex = index;
@@ -115,22 +222,8 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
         userEmail: userEmail,
         selectedIndex: _selectedIndex,
         onProfileTap: () {
-          Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProfilePage(
-                onProfileUpdate: (name, email) {
-                  setState(() {
-                    userName = name;
-                    userEmail = email;
-                  });
-                },
-                initialName: userName,
-                initialEmail: userEmail,
-              ),
-            ),
-          );
+          Navigator.pop(context); // Close the drawer
+          _navigateToProfilePage();
         },
         onDashboardTap: () {
           Navigator.pop(context);
@@ -187,6 +280,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
                       _isSearching = true;
                     });
                   },
+                  onChanged: (_) => _performSearch(),
                   onSubmitted: (_) {
                     setState(() {
                       _isSearching = false;
@@ -210,6 +304,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
                       onPressed: () {
                         setState(() {
                           _searchController.clear();
+                          _performSearch(); // Update results when cleared
                           _isSearching = false;
                         });
                       },
@@ -256,23 +351,29 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
 
               const SizedBox(height: 16),
 
-              // Minimalist golf course cards
+              // Minimalist golf course cards with search results
               Expanded(
-                child: ListView(
-                  children: [
-                    _buildMinimalistCourseCard(
-                      'CIMSO Golf Club',
-                      '54 Benar Ed, Beachoro',
-                      rating: 4.8,
-                      distance: '3.2 mi',
+                child: _filteredCourses.isEmpty
+                    ? Center(
+                  child: Text(
+                    'No golf courses found',
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 16,
                     ),
-                    _buildMinimalistCourseCard(
-                      'Geo J Park Golf Course',
-                      '4 Foe Ed, Joroeme',
-                      rating: 4.5,
-                      distance: '5.7 mi',
-                    ),
-                  ],
+                  ),
+                )
+                    : ListView.builder(
+                  itemCount: _filteredCourses.length,
+                  itemBuilder: (context, index) {
+                    final course = _filteredCourses[index];
+                    return _buildMinimalistCourseCard(
+                      course.name,
+                      course.location,
+                      rating: course.rating,
+                      distance: course.distance,
+                    );
+                  },
                 ),
               ),
             ],
@@ -306,42 +407,37 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.notifications_none, size: 20),
-          color: textColor,
-          onPressed: () {},
+          icon: const Icon(Icons.notifications),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const NotificationScreen()),
+            );
+          },
         ),
-        // Added profile avatar in app bar for quick profile access
+        // Added profile avatar in app bar for quick profile access - updated with profile image
         Padding(
           padding: const EdgeInsets.only(right: 16),
           child: GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfilePage(
-                    onProfileUpdate: (name, email) {
-                      setState(() {
-                        userName = name;
-                        userEmail = email;
-                      });
-                    },
-                    initialName: userName,
-                    initialEmail: userEmail,
-                  ),
-                ),
-              );
-            },
+            onTap: _navigateToProfilePage, // Updated to use centralized method
             child: CircleAvatar(
               radius: 16,
-              backgroundColor: accentColor.withOpacity(0.2),
-              child: Text(
+              backgroundColor: userProfileImage != null
+                  ? Colors.transparent
+                  : accentColor.withOpacity(0.2),
+              backgroundImage: userProfileImage != null
+                  ? FileImage(userProfileImage!)
+                  : null,
+              child: userProfileImage == null
+                  ? Text(
                 userName.isNotEmpty ? userName[0].toUpperCase() : 'W',
                 style: TextStyle(
                   color: accentColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
-              ),
+              )
+                  : null,
             ),
           ),
         ),
