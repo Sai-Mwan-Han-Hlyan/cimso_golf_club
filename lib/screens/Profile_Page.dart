@@ -35,9 +35,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   // Revised list of country codes with unique identifiers
   final List<String> countryCodes = [
+    'TH +66 (Thailand)',
     'US +1',
     'UK +44',
-    'CA +1 (Canada)',
+    'CA +1 ',
     'AU +61',
     'DE +49',
     'FR +33',
@@ -50,7 +51,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     'JP +81',
     'KR +82',
     'RU +7',
-    'TH +66',
+
     'SG +65',
     'MY +60',
     'NZ +64',

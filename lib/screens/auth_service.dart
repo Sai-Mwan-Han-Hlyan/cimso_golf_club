@@ -157,4 +157,27 @@ class AuthService {
     final user = await getCurrentUser();
     return user != null;
   }
+  static Future<bool> resetPassword(String email) async {
+    try {
+      final List<User> users = await getUsers();
+
+      // Find user with matching email
+      final userIndex = users.indexWhere((user) => user.email == email);
+
+      if (userIndex == -1) {
+        return false; // Email not found
+      }
+
+      // In a real app, you would send an email with a reset link here
+      // For this implementation, we'll simulate a successful email send
+
+      // Simulate a delay for the "email sending" process
+      await Future.delayed(const Duration(seconds: 1));
+
+      return true;
+    } catch (e) {
+      print('Error resetting password: $e');
+      return false;
+    }
+  }
 }

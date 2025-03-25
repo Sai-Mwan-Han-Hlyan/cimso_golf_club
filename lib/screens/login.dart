@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'loading_screen.dart';
 import 'auth_service.dart';
+import 'forgot_password.dart';
+import 'welcome_screen.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -56,8 +58,16 @@ class _LoginState extends State<Login> {
 
       // Handle login result
       if (success) {
-        // Navigate to dashboard
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        // Remove loading screen
+        Navigator.pop(context);
+
+        // Show welcome screen instead of going directly to dashboard
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const WelcomeScreen(isNewAccount: false),
+          ),
+        );
       } else {
         // Remove loading screen
         Navigator.pop(context);
@@ -153,7 +163,14 @@ class _LoginState extends State<Login> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPassword(),
+                            ),
+                          );
+                        },
                         child: const Text(
                           'Forgot password?',
                           style: TextStyle(

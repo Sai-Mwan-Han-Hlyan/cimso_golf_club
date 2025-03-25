@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'loading_screen.dart';
 import 'auth_service.dart';
+import 'welcome_screen.dart';
 
 class CreateAccount extends StatefulWidget {
   const CreateAccount({super.key});
@@ -34,7 +35,7 @@ class _CreateAccountState extends State<CreateAccount> {
         MaterialPageRoute(builder: (context) => const LoadingScreen(message: "Creating account...")),
       );
 
-      // Try to register the user
+      // Try to register
       final success = await AuthService.register(
         _usernameController.text,
         _emailController.text,
@@ -43,8 +44,16 @@ class _CreateAccountState extends State<CreateAccount> {
 
       // Handle registration result
       if (success) {
-        // Navigate to dashboard
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        // Remove loading screen
+        Navigator.pop(context);
+
+        // Show welcome screen with isNewAccount: true
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const WelcomeScreen(isNewAccount: true),
+          ),
+        );
       } else {
         // Remove loading screen
         Navigator.pop(context);
