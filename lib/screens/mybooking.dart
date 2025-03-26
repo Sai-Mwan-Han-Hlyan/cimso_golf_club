@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'booking_model.dart';
 import 'booking_service.dart';
 import 'booking_detail.dart';
 import 'dashboard.dart';
+import 'package:cimso_golf_booking/providers/theme_provider.dart';
 
 class MyBooking extends StatefulWidget {
   final BookingModel? newBooking; // Optional parameter to receive new booking data
@@ -24,14 +26,6 @@ class _MyBookingState extends State<MyBooking> {
   bool _comeFromPaymentSuccess = false;
   final BookingService _bookingService = BookingService();
   bool _isLoading = true;
-
-  // Simplified and minimalist color scheme
-  final Color primaryColor = Colors.black;
-  final Color accentColor = const Color(0xFF4CAF50); // A subtle green
-  final Color backgroundColor = Colors.white;
-  final Color surfaceColor = const Color(0xFFF9F9F9); // Very light gray
-  final Color textColor = Colors.black87;
-  final Color secondaryTextColor = Colors.black54;
 
   @override
   void initState() {
@@ -69,6 +63,9 @@ class _MyBookingState extends State<MyBooking> {
 
         // Show success notification
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+          final accentColor = Theme.of(context).colorScheme.primary;
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Booking added successfully!'),
@@ -116,6 +113,19 @@ class _MyBookingState extends State<MyBooking> {
 
   @override
   Widget build(BuildContext context) {
+    // Get theme information
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
+    // Define theme-aware colors
+    final Color backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+    final Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    final Color secondaryTextColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black54;
+    final Color accentColor = Theme.of(context).colorScheme.primary;
+    final Color surfaceColor = isDark ? Colors.grey[800]! : const Color(0xFFF9F9F9);
+    final Color cardColor = isDark ? Color(0xFF1E1E1E) : Colors.white;
+    final Color dividerColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
+
     return PopScope(
       // Handle system back button press
       canPop: false,
@@ -128,10 +138,10 @@ class _MyBookingState extends State<MyBooking> {
         appBar: AppBar(
           backgroundColor: backgroundColor,
           elevation: 0,
-          title: const Text(
+          title: Text(
             'My Bookings',
             style: TextStyle(
-              color: Colors.black87,
+              color: textColor,
               fontSize: 18,
               fontWeight: FontWeight.w400,
               letterSpacing: 0.5,
@@ -152,21 +162,27 @@ class _MyBookingState extends State<MyBooking> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  _bookingTab("Upcoming", 0),
+                  _bookingTab("Upcoming", 0, accentColor, secondaryTextColor),
                   const SizedBox(width: 32),
-                  _bookingTab("Past", 1),
+                  _bookingTab("Past", 1, accentColor, secondaryTextColor),
                 ],
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: 1, color: dividerColor),
             Expanded(
               child: _selectedIndex == 0
                   ? upcomingBookings.isEmpty
-                  ? _emptyState("No upcoming bookings")
-                  : _upcomingBookings()
+                  ? _emptyState("No upcoming bookings", secondaryTextColor, isDark)
+                  : _upcomingBookings(
+                  backgroundColor, surfaceColor, textColor,
+                  secondaryTextColor, accentColor, cardColor, isDark
+              )
                   : pastBookings.isEmpty
-                  ? _emptyState("No past bookings")
-                  : _pastBookings(),
+                  ? _emptyState("No past bookings", secondaryTextColor, isDark)
+                  : _pastBookings(
+                  backgroundColor, surfaceColor, textColor,
+                  secondaryTextColor, accentColor, cardColor, isDark
+              ),
             ),
           ],
         ),
@@ -174,7 +190,7 @@ class _MyBookingState extends State<MyBooking> {
     );
   }
 
-  Widget _emptyState(String message) {
+  Widget _emptyState(String message, Color textColor, bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -182,14 +198,14 @@ class _MyBookingState extends State<MyBooking> {
           Icon(
             Icons.event_busy,
             size: 64,
-            color: Colors.grey[300],
+            color: isDark ? Colors.grey[700] : Colors.grey[300],
           ),
           const SizedBox(height: 16),
           Text(
             message,
             style: TextStyle(
               fontSize: 16,
-              color: secondaryTextColor,
+              color: textColor,
             ),
           ),
         ],
@@ -197,7 +213,7 @@ class _MyBookingState extends State<MyBooking> {
     );
   }
 
-  Widget _bookingTab(String title, int index) {
+  Widget _bookingTab(String title, int index, Color accentColor, Color secondaryTextColor) {
     final bool isSelected = _selectedIndex == index;
 
     return GestureDetector(
@@ -228,34 +244,68 @@ class _MyBookingState extends State<MyBooking> {
     );
   }
 
-  Widget _upcomingBookings() {
+  Widget _upcomingBookings(
+      Color backgroundColor,
+      Color surfaceColor,
+      Color textColor,
+      Color secondaryTextColor,
+      Color accentColor,
+      Color cardColor,
+      bool isDark,
+      ) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: upcomingBookings.length,
       itemBuilder: (context, index) {
         final booking = upcomingBookings[index];
-        return _buildConciseBookingCard(booking, true);
+        return _buildConciseBookingCard(
+            booking, true, backgroundColor, surfaceColor, textColor,
+            secondaryTextColor, accentColor, cardColor, isDark
+        );
       },
     );
   }
 
-  Widget _pastBookings() {
+  Widget _pastBookings(
+      Color backgroundColor,
+      Color surfaceColor,
+      Color textColor,
+      Color secondaryTextColor,
+      Color accentColor,
+      Color cardColor,
+      bool isDark,
+      ) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: pastBookings.length,
       itemBuilder: (context, index) {
         final booking = pastBookings[index];
-        return _buildConciseBookingCard(booking, false);
+        return _buildConciseBookingCard(
+            booking, false, backgroundColor, surfaceColor, textColor,
+            secondaryTextColor, accentColor, cardColor, isDark
+        );
       },
     );
   }
 
-  Widget _buildConciseBookingCard(BookingModel booking, bool isUpcoming) {
+  Widget _buildConciseBookingCard(
+      BookingModel booking,
+      bool isUpcoming,
+      Color backgroundColor,
+      Color surfaceColor,
+      Color textColor,
+      Color secondaryTextColor,
+      Color accentColor,
+      Color cardColor,
+      bool isDark,
+      ) {
     // Determine if this is a cancelled booking
     // Using our special indicator where amountPaid = -1.0
     final bool isCancelled = !isUpcoming && booking.amountPaid == -1.0;
+    final cancelledColor = isDark ? Colors.red[400]! : Colors.red[700]!;
 
     return Card(
+      color: cardColor,
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -264,7 +314,7 @@ class _MyBookingState extends State<MyBooking> {
           color: isUpcoming
               ? accentColor.withAlpha(51)
               : isCancelled
-              ? Colors.red.withAlpha(51) // Red border for cancelled bookings
+              ? cancelledColor.withAlpha(51) // Red border for cancelled bookings
               : Colors.grey.withAlpha(51),
           width: 1,
         ),
@@ -339,7 +389,7 @@ class _MyBookingState extends State<MyBooking> {
                   color: isUpcoming
                       ? accentColor.withAlpha(26)
                       : isCancelled
-                      ? Colors.red.withAlpha(26) // Light red for cancelled
+                      ? cancelledColor.withAlpha(26) // Light red for cancelled
                       : surfaceColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -354,7 +404,7 @@ class _MyBookingState extends State<MyBooking> {
                         color: isUpcoming
                             ? accentColor
                             : isCancelled
-                            ? Colors.red.shade700 // Red text for cancelled
+                            ? cancelledColor // Red text for cancelled
                             : secondaryTextColor,
                       ),
                     ),
@@ -365,7 +415,7 @@ class _MyBookingState extends State<MyBooking> {
                         color: isUpcoming
                             ? accentColor
                             : isCancelled
-                            ? Colors.red.shade700 // Red text for cancelled
+                            ? cancelledColor // Red text for cancelled
                             : secondaryTextColor,
                       ),
                     ),
@@ -438,7 +488,7 @@ class _MyBookingState extends State<MyBooking> {
                       color: isUpcoming
                           ? accentColor.withAlpha(26)
                           : isCancelled
-                          ? Colors.red.withAlpha(26) // Light red for cancelled
+                          ? cancelledColor.withAlpha(26) // Light red for cancelled
                           : Colors.grey.withAlpha(26),
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -454,8 +504,8 @@ class _MyBookingState extends State<MyBooking> {
                         color: isUpcoming
                             ? accentColor
                             : isCancelled
-                            ? Colors.red.shade700 // Red text for cancelled
-                            : Colors.grey[600],
+                            ? cancelledColor // Red text for cancelled
+                            : isDark ? Colors.grey[400] : Colors.grey[600],
                       ),
                     ),
                   ),

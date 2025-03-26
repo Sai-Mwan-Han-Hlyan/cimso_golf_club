@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:cimso_golf_booking/providers/theme_provider.dart';
 
 class ProfilePage extends StatefulWidget {
   // Updated callback to include all profile fields
@@ -33,50 +36,65 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   late TextEditingController phoneController;
   String? gender;
   DateTime? selectedDate;
-  String selectedCountryCode = 'TH +66 (Thailand)'; // Changed default to Thailand
+  String selectedCountryCode = 'TH +66'; // Changed default to Thailand with shorter text
   late AnimationController _buttonAnimationController;
   late Animation<double> _buttonAnimation;
   bool _isEditMode = false;
+  late Animation<double> _fadeAnimation;
 
   // Variables for image handling
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
 
-  // Define the app's color scheme for consistency
-  final Color primaryColor = Colors.white;
-  final Color accentColor = const Color(0xFF4CAF50);
-  final Color textColor = Colors.black87;
-  final Color secondaryTextColor = Colors.black54;
-  final Color surfaceColor = const Color(0xFFF9F9F9);
+  // Color constants
+  final Map<String, Color> _lightThemeColors = {
+    'primary': const Color(0xFF1B5E20),      // Forest Green
+    'primaryLight': const Color(0xFF43A047), // Light Green
+    'secondary': const Color(0xFF2E7D32),    // Medium Green
+    'accent': const Color(0xFF00BFA5),       // Teal Accent
+    'background': const Color(0xFFF9F9F9),   // Off-White
+    'card': Colors.white,
+    'textPrimary': const Color(0xFF212121),  // Near Black
+    'textSecondary': const Color(0xFF757575),// Medium Gray
+    'success': const Color(0xFF66BB6A),      // Light Green
+    'error': const Color(0xFFE57373),        // Light Red
+  };
 
-  // Revised list of country codes with unique identifiers
+  final Map<String, Color> _darkThemeColors = {
+    'primary': const Color(0xFF2E7D32),      // Medium Green
+    'primaryLight': const Color(0xFF388E3C), // Medium-Light Green
+    'secondary': const Color(0xFF1B5E20),    // Forest Green
+    'accent': const Color(0xFF00BFA5),       // Teal Accent
+    'background': const Color(0xFF121212),   // Dark Gray
+    'card': const Color(0xFF1E1E1E),         // Medium-Dark Gray
+    'textPrimary': const Color(0xFFECEFF1),  // Off-White
+    'textSecondary': const Color(0xFFB0BEC5),// Light Gray
+    'success': const Color(0xFF4CAF50),      // Green
+    'error': const Color(0xFFEF5350),        // Red
+  };
+
+  // Revised list of country codes with shorter text to prevent overflow
   final List<String> countryCodes = [
-    'TH +66 (Thailand)',
-    'US +1',
-    'UK +44',
-    'CA +1 ',
-    'AU +61',
-    'DE +49',
-    'FR +33',
-    'IT +39',
-    'ES +34',
-    'BR +55',
-    'MX +52',
-    'IN +91',
-    'CN +86',
-    'JP +81',
-    'KR +82',
-    'RU +7',
-    'SG +65',
-    'MY +60',
-    'NZ +64',
-    'ZA +27',
-    'NG +234',
-    'KE +254',
-    'EG +20',
-    'TR +90',
-    'AE +971',
-    'SA +966',
+    'TH +66',  // Thailand
+    'US +1',   // USA
+    'UK +44',  // United Kingdom
+    'CA +1',   // Canada
+    'AU +61',  // Australia
+    'DE +49',  // Germany
+    'FR +33',  // France
+    'IT +39',  // Italy
+    'ES +34',  // Spain
+    'BR +55',  // Brazil
+    'MX +52',  // Mexico
+    'IN +91',  // India
+    'CN +86',  // China
+    'JP +81',  // Japan
+    'KR +82',  // South Korea
+    'RU +7',   // Russia
+    'SG +65',  // Singapore
+    'MY +60',  // Malaysia
+    'NZ +64',  // New Zealand
+    'ZA +27',  // South Africa
   ];
 
   @override
@@ -94,10 +112,18 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+
     _buttonAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(
         parent: _buttonAnimationController,
         curve: Curves.easeInOut,
+      ),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _buttonAnimationController,
+        curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
       ),
     );
   }
@@ -115,9 +141,15 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     setState(() {
       _isEditMode = !_isEditMode;
     });
+
+    if (_isEditMode) {
+      _buttonAnimationController.forward();
+    } else {
+      _buttonAnimationController.reverse();
+    }
   }
 
-  Future<void> _selectDate(BuildContext context) async {
+  Future<void> _selectDate(BuildContext context, Map<String, Color> colors, bool isDark) async {
     if (!_isEditMode) return;
 
     final DateTime? picked = await showDatePicker(
@@ -129,16 +161,17 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: accentColor,
+              primary: colors['primary']!,
               onPrimary: Colors.white,
-              onSurface: Colors.black,
+              onSurface: colors['textPrimary']!,
             ),
-            dialogBackgroundColor: Colors.white,
+            dialogBackgroundColor: colors['card'],
           ),
           child: child!,
         );
       },
     );
+
     if (picked != null && picked != selectedDate) {
       setState(() {
         selectedDate = picked;
@@ -157,15 +190,35 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       _imageFile,
     );
 
+    // Get the theme colors
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+    final colors = isDark ? _darkThemeColors : _lightThemeColors;
+
     // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Profile updated successfully'),
-        backgroundColor: accentColor,
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Profile updated successfully',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: colors['success'],
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
+        margin: const EdgeInsets.all(10),
       ),
     );
 
@@ -191,14 +244,34 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         });
       }
     } catch (e) {
+      // Get the theme colors
+      final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+      final isDark = themeProvider.isDarkMode;
+      final colors = isDark ? _darkThemeColors : _lightThemeColors;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error picking image: $e'),
-          backgroundColor: Colors.red,
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Error picking image: $e',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: colors['error'],
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
+          margin: const EdgeInsets.all(10),
         ),
       );
     }
@@ -211,6 +284,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   }
 
   void _showChangePhotoOptions() {
+    // Get theme information
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+    final colors = isDark ? _darkThemeColors : _lightThemeColors;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -218,9 +296,17 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       builder: (BuildContext context) {
         return Container(
           padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: colors['card'],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              ),
+            ],
+            border: isDark ? Border.all(color: Colors.grey[800]!, width: 1) : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -231,12 +317,16 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
-                  color: Colors.grey.shade300,
+                  color: colors['textSecondary']!.withOpacity(0.3),
                 ),
               ),
-              const Text(
+              Text(
                 'Change Profile Photo',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: colors['textPrimary'],
+                ),
               ),
               const SizedBox(height: 30),
               Row(
@@ -249,7 +339,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       Navigator.pop(context);
                       _pickImage(ImageSource.camera);
                     },
-                    color: accentColor,
+                    colors: colors,
                   ),
                   _photoOptionButton(
                     icon: Icons.photo_library,
@@ -258,7 +348,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       Navigator.pop(context);
                       _pickImage(ImageSource.gallery);
                     },
-                    color: accentColor,
+                    colors: colors,
                   ),
                   _photoOptionButton(
                     icon: Icons.delete_outline,
@@ -268,6 +358,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       Navigator.pop(context);
                       _removeImage();
                     },
+                    colors: colors,
                   ),
                 ],
               ),
@@ -280,9 +371,12 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Cancel',
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color: colors['textSecondary'],
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -298,9 +392,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     required String label,
     required VoidCallback onTap,
     bool isDestructive = false,
-    Color? color,
+    required Map<String, Color> colors,
   }) {
-    final buttonColor = isDestructive ? Colors.red : (color ?? accentColor);
+    final buttonColor = isDestructive ? colors['error']! : colors['primary']!;
 
     return GestureDetector(
       onTap: onTap,
@@ -322,8 +416,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           const SizedBox(height: 10),
           Text(
             label,
-            style: TextStyle(
-              color: isDestructive ? Colors.red : Colors.black87,
+            style: GoogleFonts.poppins(
+              color: isDestructive ? colors['error'] : colors['textPrimary'],
               fontWeight: FontWeight.w500,
               fontSize: 14,
             ),
@@ -335,539 +429,704 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    // Get theme information
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
+    // Theme colors based on mode
+    final colors = isDark ? _darkThemeColors : _lightThemeColors;
+
+    // Shadow settings based on theme
+    final BoxShadow cardShadow = BoxShadow(
+      color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
+      blurRadius: 15,
+      offset: const Offset(0, 5),
+      spreadRadius: isDark ? 1 : 0,
+    );
+
+    // Border based on theme
+    final Border? cardBorder = isDark
+        ? Border.all(color: Colors.grey[800]!, width: 1)
+        : null;
+
     return Scaffold(
-      backgroundColor: primaryColor,
+      backgroundColor: colors['background'],
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(
-          _isEditMode ? 'Edit Profile' : 'Profile',
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-            color: Colors.white,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: accentColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           if (!_isEditMode)
             IconButton(
-              icon: const Icon(Icons.edit, color: Colors.white),
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.edit, color: Colors.white, size: 18),
+              ),
               onPressed: _toggleEditMode,
               tooltip: 'Edit Profile',
             )
           else
             IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 18),
+              ),
               onPressed: _toggleEditMode,
               tooltip: 'Cancel Editing',
             ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Profile header with photo
-              Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  // Header background
-                  Container(
-                    width: double.infinity,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      color: accentColor,
-                      boxShadow: [
-                        BoxShadow(
-                          color: accentColor.withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header section with profile image
+            Stack(
+              children: [
+                // Background header
+                Container(
+                  height: 240,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: colors['primary'],
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors['primary']!.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ShaderMask(
+                    shaderCallback: (Rect bounds) {
+                      return LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.6),
+                        ],
+                        stops: const [0.5, 1.0],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.srcOver,
+                    child: isDark
+                        ? ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                          Colors.black.withOpacity(0.3),
+                          BlendMode.darken
+                      ),
+                      child: Image.asset(
+                        'assets/',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 240,
+                      ),
+                    )
+                        : Image.asset(
+                      'assets/',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 240,
                     ),
                   ),
+                ),
 
-                  // Profile image - positioned to overflow the header
-                  Positioned(
-                    bottom: -60,
-                    child: GestureDetector(
-                      onTap: _isEditMode ? _showChangePhotoOptions : null,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 65,
-                          backgroundColor: Colors.white,
-                          backgroundImage: _imageFile != null
-                              ? FileImage(_imageFile!) as ImageProvider
-                              : null,
-                          child: _imageFile == null
-                              ? Text(
-                            nameController.text.isNotEmpty
-                                ? nameController.text[0].toUpperCase()
-                                : 'U',
-                            style: TextStyle(
-                              fontSize: 50,
-                              fontWeight: FontWeight.bold,
-                              color: accentColor,
-                            ),
-                          )
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Edit camera icon
-                  if (_isEditMode)
-                    Positioned(
-                      bottom: -20,
-                      right: MediaQuery.of(context).size.width / 2 - 80,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: accentColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-
-              // Spacing to account for overlapping profile image
-              const SizedBox(height: 70),
-
-              // Profile form content
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                // Profile content
+                Column(
                   children: [
-                    // Name display when not in edit mode
+                    // Empty space for app bar
+                    const SizedBox(height: 100),
+
+                    // Avatar
+                    Center(
+                      child: GestureDetector(
+                        onTap: _isEditMode ? _showChangePhotoOptions : null,
+                        child: Stack(
+                          children: [
+                            // Profile image
+                            Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: colors['card'],
+                                border: Border.all(
+                                  color: colors['card']!,
+                                  width: 4,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                                image: _imageFile != null
+                                    ? DecorationImage(
+                                  image: FileImage(_imageFile!),
+                                  fit: BoxFit.cover,
+                                )
+                                    : null,
+                              ),
+                              child: _imageFile == null
+                                  ? Center(
+                                child: Text(
+                                  nameController.text.isNotEmpty
+                                      ? nameController.text[0].toUpperCase()
+                                      : 'U',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 48,
+                                    fontWeight: FontWeight.bold,
+                                    color: colors['primary'],
+                                  ),
+                                ),
+                              )
+                                  : null,
+                            ),
+
+                            // Edit icon
+                            if (_isEditMode)
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: colors['primary'],
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: colors['card']!,
+                                      width: 2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 5,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Name and Email
                     if (!_isEditMode)
                       Column(
                         children: [
                           Text(
                             nameController.text,
-                            style: const TextStyle(
+                            style: GoogleFonts.poppins(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             emailController.text,
-                            style: TextStyle(
+                            style: GoogleFonts.poppins(
                               fontSize: 14,
-                              color: secondaryTextColor,
+                              color: Colors.white.withOpacity(0.8),
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 20),
                         ],
                       ),
 
-                    // Information Sections
-                    _buildProfileSection(
-                      title: 'Personal Information',
-                      icon: Icons.person_outline,
-                      children: [
-                        if (_isEditMode)
-                          _buildEditField(
-                            label: 'Name',
-                            controller: nameController,
-                            icon: Icons.person,
-                          ),
+                    const SizedBox(height: 50),
 
-                        if (_isEditMode)
-                          _buildEditField(
-                            label: 'Email',
-                            controller: emailController,
-                            icon: Icons.email,
-                            keyboardType: TextInputType.emailAddress,
-                            enabled: false, // Email usually can't be changed
-                          ),
-
-                        if (!_isEditMode)
-                          _buildInfoRow(
-                            icon: Icons.phone,
-                            title: 'Phone',
-                            value: phoneController.text.isNotEmpty
-                                ? '${phoneController.text} ($selectedCountryCode)'
-                                : 'Not set',
-                            isEmpty: phoneController.text.isEmpty,
-                          ),
-
-                        if (_isEditMode)
-                          _buildPhoneField(),
-
-                        _buildInfoRow(
-                          icon: Icons.calendar_today,
-                          title: 'Date of Birth',
-                          value: selectedDate != null
-                              ? '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
-                              : 'Not set',
-                          isEmpty: selectedDate == null,
-                          onTap: _isEditMode ? () => _selectDate(context) : null,
-                        ),
-
-                        if (_isEditMode)
-                          const SizedBox(height: 10),
-
-                        if (_isEditMode)
-                          _buildGenderSelector(),
-
-                        if (!_isEditMode)
-                          _buildInfoRow(
+                    // Profile details
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Personal info card
+                          _buildProfileCard(
+                            title: 'Personal Information',
                             icon: Icons.person_outline,
-                            title: 'Gender',
-                            value: gender ?? 'Not specified',
-                            isEmpty: gender == null,
+                            children: [
+                              // Name field (edit mode)
+                              if (_isEditMode)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: _buildInputField(
+                                    label: 'Name',
+                                    controller: nameController,
+                                    icon: Icons.person,
+                                    colors: colors,
+                                  ),
+                                ),
+
+                              // Email field (edit mode)
+                              if (_isEditMode)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: _buildInputField(
+                                    label: 'Email',
+                                    controller: emailController,
+                                    icon: Icons.email,
+                                    keyboardType: TextInputType.emailAddress,
+                                    enabled: false, // Email usually can't be changed
+                                    colors: colors,
+                                  ),
+                                ),
+
+                              // Phone number (view mode)
+                              if (!_isEditMode)
+                                _buildInfoRow(
+                                  icon: Icons.phone,
+                                  label: 'Phone',
+                                  value: phoneController.text.isNotEmpty
+                                      ? phoneController.text
+                                      : 'Not set',
+                                  hasValue: phoneController.text.isNotEmpty,
+                                  colors: colors,
+                                ),
+
+                              // Phone field (edit mode)
+                              if (_isEditMode)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: _buildPhoneField(colors, isDark),
+                                ),
+
+                              // Date of birth (view mode)
+                              if (!_isEditMode)
+                                _buildInfoRow(
+                                  icon: Icons.calendar_today,
+                                  label: 'Date of Birth',
+                                  value: selectedDate != null
+                                      ? '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
+                                      : 'Not set',
+                                  hasValue: selectedDate != null,
+                                  colors: colors,
+                                ),
+
+                              // Date of birth (edit mode)
+                              if (_isEditMode)
+                                _buildDateField(colors, isDark),
+
+                              // Gender (view mode)
+                              if (!_isEditMode)
+                                _buildInfoRow(
+                                  icon: Icons.person_outline,
+                                  label: 'Gender',
+                                  value: gender ?? 'Not specified',
+                                  hasValue: gender != null,
+                                  colors: colors,
+                                ),
+
+                              // Gender selector (edit mode)
+                              if (_isEditMode)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: _buildGenderSelector(colors),
+                                ),
+                            ],
+                            colors: colors,
+                            cardShadow: cardShadow,
+                            cardBorder: cardBorder,
                           ),
-                      ],
+
+                          const SizedBox(height: 30),
+
+                          // Save button (only in edit mode)
+                          if (_isEditMode)
+                            _buildSaveButton(colors),
+
+                          const SizedBox(height: 30),
+                        ],
+                      ),
                     ),
-
-                    const SizedBox(height: 30),
-
-                    // Save button (only in edit mode)
-                    if (_isEditMode)
-                      _buildSaveButton(),
-
-                    const SizedBox(height: 30),
                   ],
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileSection({
+  Widget _buildProfileCard({
     required String title,
     required IconData icon,
     required List<Widget> children,
+    required Map<String, Color> colors,
+    required BoxShadow cardShadow,
+    required Border? cardBorder,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: accentColor,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: accentColor,
-                  ),
-                ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 20,
+              decoration: BoxDecoration(
+                color: colors['primary'],
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colors['textPrimary'],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Icon(
+              icon,
+              color: colors['primary'],
+              size: 20,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          decoration: BoxDecoration(
+            color: colors['card'],
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [cardShadow],
+            border: cardBorder,
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 10,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: children,
-            ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildInfoRow({
     required IconData icon,
-    required String title,
+    required String label,
     required String value,
-    bool isEmpty = false,
-    VoidCallback? onTap,
+    required bool hasValue,
+    required Map<String, Color> colors,
   }) {
-    final row = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: secondaryTextColor,
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: secondaryTextColor,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: isEmpty ? Colors.grey.shade400 : textColor,
-                  fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          if (onTap != null)
-            Icon(
-              Icons.edit,
-              size: 18,
-              color: accentColor,
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: colors['primary']!.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: Icon(
+              icon,
+              color: colors['primary'],
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: colors['textSecondary'],
+                  ),
+                ),
+                Text(
+                  value,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: hasValue ? FontWeight.w500 : FontWeight.w400,
+                    color: hasValue ? colors['textPrimary'] : colors['textSecondary'],
+                    fontStyle: hasValue ? FontStyle.normal : FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
-
-    if (onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: row,
-      );
-    }
-
-    return row;
   }
 
-  Widget _buildEditField({
+  Widget _buildInputField({
     required String label,
     required TextEditingController controller,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     bool enabled = true,
+    required Map<String, Color> colors,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: secondaryTextColor,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: enabled
+                ? colors['primary']!.withOpacity(0.1)
+                : colors['textSecondary']!.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              enabled: enabled,
-              keyboardType: keyboardType,
-              style: TextStyle(
-                fontSize: 16,
-                color: enabled ? textColor : Colors.grey,
+          child: Icon(
+            icon,
+            color: enabled ? colors['primary'] : colors['textSecondary'],
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            enabled: enabled,
+            keyboardType: keyboardType,
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              color: enabled ? colors['textPrimary'] : colors['textSecondary'],
+            ),
+            decoration: InputDecoration(
+              labelText: label,
+              labelStyle: GoogleFonts.poppins(
+                fontSize: 12,
+                color: colors['textSecondary'],
               ),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle: TextStyle(
-                  fontSize: 14,
-                  color: secondaryTextColor,
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: colors['textSecondary']!.withOpacity(0.3),
                 ),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                    color: Colors.grey.shade300,
-                  ),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                    color: accentColor,
-                    width: 2,
-                  ),
-                ),
-                disabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                    color: Colors.grey.shade200,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
               ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: colors['primary']!,
+                  width: 2,
+                ),
+              ),
+              disabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: colors['textSecondary']!.withOpacity(0.1),
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildSaveButton() {
-    return GestureDetector(
-      onTapDown: (_) => _buttonAnimationController.forward(),
-      onTapUp: (_) => _buttonAnimationController.reverse(),
-      onTapCancel: () => _buttonAnimationController.reverse(),
-      onTap: _saveProfile,
-      child: AnimatedBuilder(
-        animation: _buttonAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _buttonAnimation.value,
-            child: Container(
-              width: double.infinity,
-              height: 56,
-              decoration: BoxDecoration(
-                color: accentColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: accentColor.withOpacity(0.3),
-                    spreadRadius: 1,
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+  Widget _buildPhoneField(Map<String, Color> colors, bool isDark) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: colors['primary']!.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            Icons.phone,
+            color: colors['primary'],
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Country code dropdown - FIXED WIDTH TO PREVENT OVERFLOW
+              Container(
+                width: 80, // Fixed width to prevent overflow
+                margin: const EdgeInsets.only(right: 8),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedCountryCode,
+                    isExpanded: true,
+                    icon: Icon(
+                      Icons.arrow_drop_down,
+                      color: colors['textSecondary'],
+                      size: 18,
+                    ),
+                    elevation: 16,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: colors['textPrimary'],
+                    ),
+                    dropdownColor: colors['card'],
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          selectedCountryCode = newValue;
+                        });
+                      }
+                    },
+                    items: countryCodes.map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(
+                          value,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: colors['textPrimary'],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+
+              // Phone number input
+              Expanded(
+                child: TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    color: colors['textPrimary'],
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Phone Number',
+                    labelStyle: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: colors['textSecondary'],
+                    ),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(
+                        color: colors['textSecondary']!.withOpacity(0.3),
+                      ),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(
+                        color: colors['primary']!,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateField(Map<String, Color> colors, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: colors['primary']!.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.calendar_today,
+              color: colors['primary'],
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: InkWell(
+              onTap: () => _selectDate(context, colors, isDark),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Date of Birth',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: colors['textSecondary'],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          selectedDate != null
+                              ? '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
+                              : 'Select date',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            color: selectedDate != null
+                                ? colors['textPrimary']
+                                : colors['textSecondary'],
+                            fontStyle: selectedDate != null
+                                ? FontStyle.normal
+                                : FontStyle.italic,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          color: colors['primary'],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    height: 1,
+                    color: colors['textSecondary']!.withOpacity(0.3),
                   ),
                 ],
               ),
-              child: const Center(
-                child: Text(
-                  'Save Changes',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPhoneField() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Icon(
-            Icons.phone,
-            size: 20,
-            color: secondaryTextColor,
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: 110,
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey.shade300,
-                ),
-              ),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedCountryCode,
-                isExpanded: true,
-                icon: const Icon(Icons.arrow_drop_down, size: 20),
-                iconSize: 18,
-                elevation: 16,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                ),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      selectedCountryCode = newValue;
-                    });
-                  }
-                },
-                items: countryCodes.map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(
-                      value,
-                      style: const TextStyle(fontSize: 14),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Phone Number',
-                labelStyle: TextStyle(
-                  fontSize: 14,
-                  color: secondaryTextColor,
-                ),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                    color: Colors.grey.shade300,
-                  ),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                    color: accentColor,
-                    width: 2,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-              ),
             ),
           ),
         ],
@@ -875,70 +1134,131 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildGenderSelector() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
+  Widget _buildGenderSelector(Map<String, Color> colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: colors['primary']!.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
                 Icons.person_outline,
+                color: colors['primary'],
                 size: 20,
-                color: secondaryTextColor,
               ),
-              const SizedBox(width: 12),
-              Text(
-                'Gender',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: secondaryTextColor,
-                  fontWeight: FontWeight.w500,
-                ),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              'Gender',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: colors['textSecondary'],
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _genderOption('Male'),
-              _genderOption('Female'),
-              _genderOption('Other'),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Wrap with row to prevent overflow
+        Row(
+          children: [
+            // Using Expanded with flex for proper spacing
+            Expanded(
+              flex: 1,
+              child: _buildGenderOption('Male', colors),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 1,
+              child: _buildGenderOption('Female', colors),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 1,
+              child: _buildGenderOption('Other', colors),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _genderOption(String value) {
+  Widget _buildGenderOption(String value, Map<String, Color> colors) {
     final isSelected = gender == value;
 
-    return GestureDetector(
+    return InkWell(
       onTap: () {
         setState(() {
           gender = value;
         });
       },
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? accentColor : Colors.transparent,
+          color: isSelected ? colors['primary'] : colors['card'],
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? accentColor : Colors.grey.shade300,
+            color: isSelected ? colors['primary']! : colors['textSecondary']!.withOpacity(0.3),
             width: 1,
           ),
-          borderRadius: BorderRadius.circular(30),
         ),
-        child: Text(
-          value,
-          style: TextStyle(
-            color: isSelected ? Colors.white : textColor,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 14,
+        child: Center(
+          child: Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? Colors.white : colors['textPrimary'],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(Map<String, Color> colors) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: colors['primary']!.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: _saveProfile,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: colors['primary'],
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.save, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Save Changes',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

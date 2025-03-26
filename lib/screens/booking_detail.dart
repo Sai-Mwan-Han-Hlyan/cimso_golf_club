@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'dart:math'; // For calculating time difference
 import 'booking_model.dart';
 import 'booking_service.dart';
 import 'payment.dart'; // Your existing payment page
 import 'payment_success.dart'; // Your existing payment success page
 import 'reschedule.dart'; // The reschedule page
+import 'package:cimso_golf_booking/providers/theme_provider.dart';
 
 class BookingDetailPage extends StatefulWidget {
   final BookingModel booking;
@@ -24,15 +26,6 @@ class BookingDetailPage extends StatefulWidget {
 class _BookingDetailPageState extends State<BookingDetailPage> {
   final BookingService _bookingService = BookingService();
   late BookingModel booking; // Local copy to track changes
-
-  // Colors
-  final Color accentColor = const Color(0xFF4CAF50);
-  final Color backgroundColor = Colors.white;
-  final Color surfaceColor = const Color(0xFFF9F9F9);
-  final Color textColor = Colors.black87;
-  final Color secondaryTextColor = Colors.black54;
-  final Color errorColor = Colors.red;
-  final Color warningColor = Colors.orange;
 
   // State variables
   late bool _isPaid;
@@ -117,46 +110,23 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     return booking.amountPaid == -1.0;
   }
 
-  // Fixed _buildDetailItem method without recursive calls
-  Widget _buildDetailItem(String label, String value, {bool highlight = false, bool warningColor = false, bool isCancelled = false}) {
-    // If this is a cancelled booking and we're displaying status
-    if (_isBookingCancelled() && (label == 'Payment Status' || label == 'Booking Status')) {
-      value = 'Cancelled';
-      highlight = true;
-      isCancelled = true;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: secondaryTextColor,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: highlight || warningColor || isCancelled ? FontWeight.w600 : FontWeight.w400,
-              color: isCancelled
-                  ? Colors.red  // Red color for cancelled status
-                  : (warningColor
-                  ? this.warningColor
-                  : (highlight ? accentColor : textColor)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Get theme information
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
+    // Define theme-aware colors
+    final Color backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+    final Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    final Color secondaryTextColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black54;
+    final Color accentColor = Theme.of(context).colorScheme.primary;
+    final Color surfaceColor = isDark ? Colors.grey[800]! : const Color(0xFFF9F9F9);
+    final Color cardColor = isDark ? Color(0xFF1E1E1E) : Colors.white;
+    final Color errorColor = Colors.red;
+    final Color warningColor = Colors.orange;
+    final Color dividerColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
+
     final bool isUpcoming = booking.isUpcoming;
     final bool isCancelled = _isBookingCancelled();
 
@@ -193,20 +163,22 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-              color: isCancelled ? Colors.red.withOpacity(0.1) : _getStatusBannerColor(),
+              color: isCancelled
+                  ? Colors.red.withOpacity(isDark ? 0.2 : 0.1)
+                  : _getStatusBannerColor(isUpcoming, _isPaid, surfaceColor, warningColor, accentColor, isDark),
               child: Row(
                 children: [
                   Icon(
-                    isCancelled ? Icons.cancel : _getStatusIcon(),
-                    color: isCancelled ? Colors.red : _getStatusIconColor(),
+                    isCancelled ? Icons.cancel : _getStatusIcon(isUpcoming, _isPaid),
+                    color: isCancelled ? Colors.red : _getStatusIconColor(isUpcoming, _isPaid, secondaryTextColor, warningColor, accentColor),
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    isCancelled ? 'Cancelled Booking' : _getStatusText(),
+                    isCancelled ? 'Cancelled Booking' : _getStatusText(isUpcoming, _isPaid),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: isCancelled ? Colors.red : _getStatusIconColor(),
+                      color: isCancelled ? Colors.red : _getStatusIconColor(isUpcoming, _isPaid, secondaryTextColor, warningColor, accentColor),
                     ),
                   ),
                 ],
@@ -221,9 +193,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 children: [
                   Text(
                     booking.courseName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -258,7 +231,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               ),
             ),
 
-            const Divider(height: 1),
+            Divider(height: 1, color: dividerColor),
 
             // Booking details
             Padding(
@@ -276,16 +249,37 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  _buildDetailItem('Players', '${booking.players} ${booking.players == 1 ? 'Player' : 'Players'}'),
+                  _buildDetailItem(
+                    'Players',
+                    '${booking.players} ${booking.players == 1 ? 'Player' : 'Players'}',
+                    textColor: textColor,
+                    secondaryTextColor: secondaryTextColor,
+                    accentColor: accentColor,
+                    errorColor: errorColor,
+                    isCancelled: isCancelled,
+                  ),
 
                   if (booking.carts != null)
-                    _buildDetailItem('Carts', '${booking.carts} ${booking.carts == 1 ? 'Cart' : 'Carts'}'),
+                    _buildDetailItem(
+                      'Carts',
+                      '${booking.carts} ${booking.carts == 1 ? 'Cart' : 'Carts'}',
+                      textColor: textColor,
+                      secondaryTextColor: secondaryTextColor,
+                      accentColor: accentColor,
+                      errorColor: errorColor,
+                      isCancelled: isCancelled,
+                    ),
 
                   if (booking.amountPaid != null && booking.amountPaid != -1.0)
                     _buildDetailItem(
                       'Amount Paid',
                       '฿ ${booking.amountPaid!.toStringAsFixed(2)}',
                       highlight: true,
+                      textColor: textColor,
+                      secondaryTextColor: secondaryTextColor,
+                      accentColor: accentColor,
+                      errorColor: errorColor,
+                      isCancelled: isCancelled,
                     ),
 
                   // Payment Status - with special handling for cancelled bookings
@@ -295,6 +289,11 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     highlight: _isPaid,
                     warningColor: !_isPaid && !isCancelled,
                     isCancelled: isCancelled,
+                    textColor: textColor,
+                    secondaryTextColor: secondaryTextColor,
+                    accentColor: accentColor,
+                    errorColor: errorColor,
+                    warningColorValue: warningColor,
                   ),
 
                   const SizedBox(height: 8),
@@ -305,12 +304,16 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     isCancelled ? 'Cancelled' : (isUpcoming ? 'Confirmed' : 'Completed'),
                     highlight: isUpcoming && !isCancelled,
                     isCancelled: isCancelled,
+                    textColor: textColor,
+                    secondaryTextColor: secondaryTextColor,
+                    accentColor: accentColor,
+                    errorColor: errorColor,
                   ),
                 ],
               ),
             ),
 
-            const Divider(height: 1),
+            Divider(height: 1, color: dividerColor),
 
             // Payment reminder for unpaid bookings (not shown for cancelled bookings)
             if (isUpcoming && !_isPaid && !isCancelled)
@@ -319,9 +322,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: warningColor.withOpacity(0.1),
+                    color: warningColor.withOpacity(isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: warningColor.withOpacity(0.3)),
+                    border: Border.all(color: warningColor.withOpacity(isDark ? 0.5 : 0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,9 +488,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withOpacity(isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    border: Border.all(color: Colors.red.withOpacity(isDark ? 0.5 : 0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,28 +530,92 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     );
   }
 
-  // Helper methods for status styling
-  Color _getStatusBannerColor() {
-    if (!booking.isUpcoming) return surfaceColor;
-    if (!_isPaid) return warningColor.withOpacity(0.1);
-    return accentColor.withOpacity(0.1);
+  // Fixed _buildDetailItem method without recursive calls
+  Widget _buildDetailItem(
+      String label,
+      String value,
+      {
+        bool highlight = false,
+        bool warningColor = false,
+        bool isCancelled = false,
+        required Color textColor,
+        required Color secondaryTextColor,
+        required Color accentColor,
+        required Color errorColor,
+        Color? warningColorValue,
+      }
+      ) {
+    // If this is a cancelled booking and we're displaying status
+    if (_isBookingCancelled() && (label == 'Payment Status' || label == 'Booking Status')) {
+      value = 'Cancelled';
+      highlight = true;
+      isCancelled = true;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: secondaryTextColor,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: highlight || warningColor || isCancelled ? FontWeight.w600 : FontWeight.w400,
+              color: isCancelled
+                  ? Colors.red  // Red color for cancelled status
+                  : (warningColor
+                  ? warningColorValue
+                  : (highlight ? accentColor : textColor)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  IconData _getStatusIcon() {
-    if (!booking.isUpcoming) return Icons.event_busy;
-    if (!_isPaid) return Icons.pending_actions;
+  // Helper methods for status styling
+  Color _getStatusBannerColor(
+      bool isUpcoming,
+      bool isPaid,
+      Color surfaceColor,
+      Color warningColor,
+      Color accentColor,
+      bool isDark,
+      ) {
+    if (!isUpcoming) return surfaceColor;
+    if (!isPaid) return warningColor.withOpacity(isDark ? 0.2 : 0.1);
+    return accentColor.withOpacity(isDark ? 0.2 : 0.1);
+  }
+
+  IconData _getStatusIcon(bool isUpcoming, bool isPaid) {
+    if (!isUpcoming) return Icons.event_busy;
+    if (!isPaid) return Icons.pending_actions;
     return Icons.event_available;
   }
 
-  Color _getStatusIconColor() {
-    if (!booking.isUpcoming) return secondaryTextColor;
-    if (!_isPaid) return warningColor;
+  Color _getStatusIconColor(
+      bool isUpcoming,
+      bool isPaid,
+      Color secondaryTextColor,
+      Color warningColor,
+      Color accentColor
+      ) {
+    if (!isUpcoming) return secondaryTextColor;
+    if (!isPaid) return warningColor;
     return accentColor;
   }
 
-  String _getStatusText() {
-    if (!booking.isUpcoming) return 'Past Booking';
-    if (!_isPaid) return 'Payment Required';
+  String _getStatusText(bool isUpcoming, bool isPaid) {
+    if (!isUpcoming) return 'Past Booking';
+    if (!isPaid) return 'Payment Required';
     return 'Confirmed Booking';
   }
 
@@ -627,15 +694,28 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   Future<void> _showCancelDialog(BuildContext context) async {
+    // Get theme information
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+    final Color dialogBgColor = isDark ? Color(0xFF1E1E1E) : Colors.white;
+    final Color textColor = isDark ? Colors.white : Colors.black87;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel Booking'),
-        content: const Text('Are you sure you want to cancel this booking? This action cannot be undone.'),
+        backgroundColor: dialogBgColor,
+        title: Text(
+          'Cancel Booking',
+          style: TextStyle(color: textColor),
+        ),
+        content: Text(
+          'Are you sure you want to cancel this booking? This action cannot be undone.',
+          style: TextStyle(color: textColor),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No'),
+            child: Text('No', style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700])),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -678,15 +758,30 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   Future<void> _showRefundDialog(BuildContext context) async {
+    // Get theme information
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+    final Color dialogBgColor = isDark ? Color(0xFF1E1E1E) : Colors.white;
+    final Color textColor = isDark ? Colors.white : Colors.black87;
+    final Color secondaryTextColor = isDark ? Colors.grey[400]! : Colors.black54;
+    final Color accentColor = Theme.of(context).colorScheme.primary;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Request Refund'),
+        backgroundColor: dialogBgColor,
+        title: Text(
+          'Request Refund',
+          style: TextStyle(color: textColor),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Are you sure you want to cancel this booking and request a refund?'),
+            Text(
+              'Are you sure you want to cancel this booking and request a refund?',
+              style: TextStyle(color: textColor),
+            ),
             const SizedBox(height: 16),
             Text(
               'Amount to be refunded: ฿ ${booking.amountPaid?.toStringAsFixed(2) ?? "0.00"}',
@@ -709,7 +804,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No'),
+            child: Text('No', style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700])),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -725,19 +820,31 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         await _bookingService.cancelBooking(booking);
 
         if (mounted) {
+          // Get theme information again for the confirmation dialog
+          final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+          final isDark = themeProvider.isDarkMode;
+          final Color dialogBgColor = isDark ? Color(0xFF1E1E1E) : Colors.white;
+          final Color textColor = isDark ? Colors.white : Colors.black87;
+          final Color accentColor = Theme.of(context).colorScheme.primary;
+
           // Show refund confirmation dialog
           await showDialog(
             context: context,
             builder: (context) => AlertDialog(
+              backgroundColor: dialogBgColor,
               title: Row(
                 children: [
                   Icon(Icons.check_circle, color: accentColor),
                   const SizedBox(width: 8),
-                  const Text('Refund Initiated'),
+                  Text(
+                    'Refund Initiated',
+                    style: TextStyle(color: textColor),
+                  ),
                 ],
               ),
-              content: const Text(
+              content: Text(
                 'Your refund request has been processed. The booking has been cancelled, and your refund will be processed within 3-5 business days.',
+                style: TextStyle(color: textColor),
               ),
               actions: [
                 TextButton(
@@ -767,16 +874,36 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     }
   }
 
-  Future<void> _showLateCancellationDialog(String title, String message, {bool showProceedButton = false, Function? onProceed}) async {
+  Future<void> _showLateCancellationDialog(
+      String title,
+      String message,
+      {bool showProceedButton = false, Function? onProceed}
+      ) async {
+    // Get theme information
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+    final Color dialogBgColor = isDark ? Color(0xFF1E1E1E) : Colors.white;
+    final Color textColor = isDark ? Colors.white : Colors.black87;
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+        backgroundColor: dialogBgColor,
+        title: Text(
+          title,
+          style: TextStyle(color: textColor),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(color: textColor),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: Text(
+              'Close',
+              style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700]),
+            ),
           ),
           if (showProceedButton && onProceed != null)
             TextButton(

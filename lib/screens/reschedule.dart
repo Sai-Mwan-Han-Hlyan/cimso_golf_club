@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'booking_model.dart';
 import 'booking_service.dart';
+import 'package:cimso_golf_booking/providers/theme_provider.dart';
 
 class ReschedulePage extends StatefulWidget {
   final BookingModel booking;
@@ -22,13 +24,6 @@ class _ReschedulePageState extends State<ReschedulePage> {
   late DateTime _selectedDate;
   late String _selectedTime;
   bool _isLoading = false;
-
-  // Colors
-  final Color accentColor = const Color(0xFF4CAF50);
-  final Color backgroundColor = Colors.white;
-  final Color surfaceColor = const Color(0xFFF9F9F9);
-  final Color textColor = Colors.black87;
-  final Color secondaryTextColor = Colors.black54;
 
   // Available time slots (these would typically come from an API)
   final List<String> _availableTimes = [
@@ -62,6 +57,19 @@ class _ReschedulePageState extends State<ReschedulePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Get theme information
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
+    // Define theme-aware colors
+    final Color backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+    final Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    final Color secondaryTextColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black54;
+    final Color accentColor = Theme.of(context).colorScheme.primary;
+    final Color surfaceColor = isDark ? Colors.grey[800]! : const Color(0xFFF9F9F9);
+    final Color cardColor = isDark ? Color(0xFF1E1E1E) : Colors.white;
+    final Color borderColor = isDark ? Colors.grey[700]! : Colors.grey.shade300;
+
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
@@ -96,6 +104,7 @@ class _ReschedulePageState extends State<ReschedulePage> {
                 decoration: BoxDecoration(
                   color: surfaceColor,
                   borderRadius: BorderRadius.circular(8),
+                  border: isDark ? Border.all(color: borderColor) : null,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,11 +176,12 @@ class _ReschedulePageState extends State<ReschedulePage> {
               ),
               const SizedBox(height: 12),
               GestureDetector(
-                onTap: () => _selectDate(context),
+                onTap: () => _selectDate(context, accentColor, textColor),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    color: cardColor,
+                    border: Border.all(color: borderColor),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -230,7 +240,7 @@ class _ReschedulePageState extends State<ReschedulePage> {
                         color: isSelected ? accentColor : surfaceColor,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isSelected ? accentColor : Colors.grey.shade300,
+                          color: isSelected ? accentColor : borderColor,
                         ),
                       ),
                       child: Center(
@@ -278,12 +288,16 @@ class _ReschedulePageState extends State<ReschedulePage> {
     );
   }
 
-  Future<void> _selectDate(BuildContext context) async {
+  Future<void> _selectDate(BuildContext context, Color accentColor, Color textColor) async {
     // Get today's date for the minimum selectable date
     final DateTime now = DateTime.now();
 
     // Calculate the maximum selectable date (e.g., 30 days from now)
     final DateTime maxDate = now.add(const Duration(days: 30));
+
+    // Get theme information for the date picker
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
 
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -298,6 +312,7 @@ class _ReschedulePageState extends State<ReschedulePage> {
               onPrimary: Colors.white,
               onSurface: textColor,
             ),
+            dialogBackgroundColor: isDark ? Color(0xFF1E1E1E) : Colors.white,
           ),
           child: child!,
         );

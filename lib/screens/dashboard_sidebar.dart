@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-// Update this import path to match your project structure
+import 'package:provider/provider.dart';
+// Update these import paths to match your project structure
 import 'auth_service.dart';
 import 'notification.dart';  // Import notification screen
+import 'package:cimso_golf_booking/providers/theme_provider.dart'; // Add this import
+import 'package:cimso_golf_booking/screens/settings_screen.dart';
 
 class DashboardSidebar extends StatelessWidget {
   final String userName;
@@ -29,8 +32,15 @@ class DashboardSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
+    // Adjust colors based on theme
+    final Color effectiveTextColor = isDark ? Colors.white : textColor;
+    final Color effectiveSecondaryTextColor = isDark ? Colors.white70 : secondaryTextColor;
+
     return Drawer(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).drawerTheme.backgroundColor,
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
@@ -44,41 +54,48 @@ class DashboardSidebar extends StatelessWidget {
               children: [
                 Text(
                   userName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0.5,
+                    color: effectiveTextColor,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   userEmail,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Colors.black54,
+                    color: effectiveSecondaryTextColor,
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: Theme.of(context).dividerColor),
           _buildDrawerItem(
               Icons.dashboard_outlined,
               'Dashboard',
               isSelected: selectedIndex == 0,
-              onTap: onDashboardTap
+              onTap: onDashboardTap,
+              effectiveTextColor: effectiveTextColor,
+              effectiveSecondaryTextColor: effectiveSecondaryTextColor
           ),
           _buildDrawerItem(
               Icons.person_outline,
               'Profile',
               isSelected: selectedIndex == 1,
-              onTap: onProfileTap
+              onTap: onProfileTap,
+              effectiveTextColor: effectiveTextColor,
+              effectiveSecondaryTextColor: effectiveSecondaryTextColor
           ),
           _buildDrawerItem(
               Icons.calendar_today_outlined,
               'My Bookings',
               isSelected: selectedIndex == 2,
-              onTap: onBookingsTap
+              onTap: onBookingsTap,
+              effectiveTextColor: effectiveTextColor,
+              effectiveSecondaryTextColor: effectiveSecondaryTextColor
           ),
           _buildDrawerItem(
               Icons.notifications_outlined,
@@ -92,19 +109,95 @@ class DashboardSidebar extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (context) => const NotificationScreen()),
                 );
-              }
+              },
+              effectiveTextColor: effectiveTextColor,
+              effectiveSecondaryTextColor: effectiveSecondaryTextColor
           ),
 
-          const Divider(height: 1),
-          _buildDrawerItem(Icons.settings_outlined, 'Settings'),
-          _buildDrawerItem(Icons.help_outline, 'Help & Support'),
+          Divider(height: 1, color: Theme.of(context).dividerColor),
+          _buildDrawerItem(
+              Icons.settings_outlined,
+              'Settings',
+              isSelected: selectedIndex == 4,
+              onTap: () {
+                Navigator.pop(context); // Close the drawer
+                // Navigate to the settings screen instead of showing a dialog
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                );
+              },
+              effectiveTextColor: effectiveTextColor,
+              effectiveSecondaryTextColor: effectiveSecondaryTextColor
+          ),
+          _buildDrawerItem(
+              Icons.help_outline,
+              'Help & Support',
+              effectiveTextColor: effectiveTextColor,
+              effectiveSecondaryTextColor: effectiveSecondaryTextColor
+          ),
           _buildDrawerItem(
               Icons.logout_outlined,
               'Log Out',
-              onTap: () => _handleLogout(context)
+              onTap: () => _handleLogout(context),
+              effectiveTextColor: effectiveTextColor,
+              effectiveSecondaryTextColor: effectiveSecondaryTextColor
           ),
         ],
       ),
+    );
+  }
+
+  // Settings dialog with dark mode toggle
+  void _showSettingsDialog(BuildContext context, ThemeProvider themeProvider) {
+    // Use StatefulBuilder to rebuild just the dialog when theme changes
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: Text(
+                  'Settings',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.titleLarge?.color,
+                  ),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SwitchListTile(
+                      title: Text(
+                        'Dark Mode',
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                      value: themeProvider.isDarkMode,
+                      onChanged: (value) {
+                        // Toggle theme and rebuild dialog
+                        themeProvider.toggleTheme();
+                        setState(() {}); // Rebuild dialog UI to reflect changes
+                      },
+                      activeColor: accentColor,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    // You can add more settings here
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: accentColor,
+                    ),
+                  ),
+                ],
+              );
+            }
+        );
+      },
     );
   }
 
@@ -115,8 +208,18 @@ class DashboardSidebar extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Confirm Logout'),
-          content: const Text('Are you sure you want to log out?'),
+          title: Text(
+            'Confirm Logout',
+            style: TextStyle(
+              color: Theme.of(context).textTheme.titleLarge?.color,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to log out?',
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+          ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -160,18 +263,27 @@ class DashboardSidebar extends StatelessWidget {
     }
   }
 
-  Widget _buildDrawerItem(IconData icon, String title, {bool isSelected = false, VoidCallback? onTap}) {
+  Widget _buildDrawerItem(
+      IconData icon,
+      String title,
+      {
+        bool isSelected = false,
+        VoidCallback? onTap,
+        required Color effectiveTextColor,
+        required Color effectiveSecondaryTextColor,
+      }
+      ) {
     return ListTile(
       dense: true,
       leading: Icon(
         icon,
         size: 20,
-        color: isSelected ? accentColor : secondaryTextColor,
+        color: isSelected ? accentColor : effectiveSecondaryTextColor,
       ),
       title: Text(
         title,
         style: TextStyle(
-          color: isSelected ? accentColor : textColor,
+          color: isSelected ? accentColor : effectiveTextColor,
           fontWeight: FontWeight.w400,
           fontSize: 14,
         ),
