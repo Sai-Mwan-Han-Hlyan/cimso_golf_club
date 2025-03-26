@@ -105,7 +105,7 @@ class _LoginState extends State<Login> {
                   children: [
                     // Logo centered
                     Center(
-                      child: Image.asset('assets/cimso_logo.png', height: 60),
+                      child: Image.asset('assets/cimso_black.png', height: 60),
                     ),
                     const SizedBox(height: 40),
 

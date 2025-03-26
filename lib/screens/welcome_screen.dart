@@ -123,7 +123,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                         ],
                       ),
                       child: Image.asset(
-                        'assets/cimso_logo.png',
+                        'assets/cimso_black.png',
                         height: 70,
                       ),
                     ),

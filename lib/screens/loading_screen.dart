@@ -27,7 +27,7 @@ class LoadingScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Logo
-              Image.asset('assets/cimso_logo.png', height: 60),
+              Image.asset('assets/cimso_black.png', height: 60),
               const SizedBox(height: 60),
 
               // Loading indicator with custom design

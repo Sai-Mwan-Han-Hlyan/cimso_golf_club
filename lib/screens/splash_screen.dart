@@ -79,7 +79,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     child: ScaleTransition(
                       scale: _scaleAnimation,
                       child: Image.asset(
-                        'assets/cimso_logo.png',
+                        'assets/cimso_black.png',
                         height: 120,
                       ),
                     ),
