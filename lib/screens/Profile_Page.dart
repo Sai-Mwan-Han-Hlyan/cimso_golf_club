@@ -406,11 +406,25 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                 alignment: Alignment.center,
                 children: [
                   // Header background
+                  // Step 1: Make sure to add the asset to your pubspec.yaml file:
+// assets:
+//   - assets/header_background.jpg  // Replace with your actual image path
+
+// Step 2: Replace the existing header background container with this code:
+
+// Header background
                   Container(
                     width: double.infinity,
                     height: 150,
                     decoration: BoxDecoration(
-                      color: accentColor,
+                      image: DecorationImage(
+                        image: AssetImage('assets/background.jpg'), // Replace with your image path
+                        fit: BoxFit.cover,
+                        colorFilter: ColorFilter.mode(
+                          accentColor.withOpacity(0.7), // Optional overlay to maintain brand color
+                          BlendMode.overlay,
+                        ),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: accentColor.withOpacity(isDark ? 0.5 : 0.3),

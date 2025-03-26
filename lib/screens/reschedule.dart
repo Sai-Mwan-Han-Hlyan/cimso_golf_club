@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'booking_model.dart';
 import 'booking_service.dart';
 import 'package:cimso_golf_booking/providers/theme_provider.dart';
+import 'package:google_fonts/google_fonts.dart'; // Added for consistency with BookingPage
 
 class ReschedulePage extends StatefulWidget {
   final BookingModel booking;
@@ -24,35 +25,32 @@ class _ReschedulePageState extends State<ReschedulePage> {
   late DateTime _selectedDate;
   late String _selectedTime;
   bool _isLoading = false;
+  late String _selectedCourse;
 
-  // Available time slots (these would typically come from an API)
-  final List<String> _availableTimes = [
-    '07:00 AM',
-    '07:30 AM',
-    '08:00 AM',
-    '08:30 AM',
-    '09:00 AM',
-    '09:30 AM',
-    '10:00 AM',
-    '10:30 AM',
-    '11:00 AM',
-    '11:30 AM',
-    '12:00 PM',
-    '12:30 PM',
-    '01:00 PM',
-    '01:30 PM',
-    '02:00 PM',
-    '02:30 PM',
-    '03:00 PM',
-    '03:30 PM',
-    '04:00 PM',
+  // Available time slots based on course type
+  final List<String> availableTimes9H = [
+    '11:00 AM', '11:45 AM', '1:30 PM', '2:15 PM', '3:30 PM', '4:15 PM'
   ];
+
+  final List<String> availableTimes18H = [
+    '8:00 AM', '9:30 AM', '11:00 AM', '12:30 PM', '2:00 PM', '3:30 PM', '5:00 PM'
+  ];
+
+  List<String> _availableTimes = [];
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.booking.date;
     _selectedTime = widget.booking.time;
+    _selectedCourse = widget.booking.courseName;
+    _updateAvailableTimes();
+  }
+
+  void _updateAvailableTimes() {
+    setState(() {
+      _availableTimes = _selectedCourse.contains('9H') ? availableTimes9H : availableTimes18H;
+    });
   }
 
   @override
@@ -216,45 +214,192 @@ class _ReschedulePageState extends State<ReschedulePage> {
                 ),
               ),
               const SizedBox(height: 12),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 2.5,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
+
+              // New time selection UI based on BookingPage
+              Container(
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                      spreadRadius: isDark ? 1 : 0,
+                    )
+                  ],
+                  border: isDark ? Border.all(color: borderColor) : null,
                 ),
-                itemCount: _availableTimes.length,
-                itemBuilder: (context, index) {
-                  final time = _availableTimes[index];
-                  final isSelected = time == _selectedTime;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedTime = time;
-                      });
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected ? accentColor : surfaceColor,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isSelected ? accentColor : borderColor,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          time,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : textColor,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: accentColor.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.access_time, color: accentColor, size: 16),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Text(
+                            DateFormat('EEEE, MMMM d').format(_selectedDate),
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: textColor,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${_availableTimes.length} available',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: _availableTimes.map((time) {
+                        final isSelected = time == _selectedTime;
+                        final timeOfDay = _getTimeOfDay(time);
+                        final isEarlyMorning = timeOfDay == 'Morning' && time.contains('AM') && !time.contains('11');
+                        final isEvening = timeOfDay == 'Evening';
+
+                        return InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedTime = time;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? accentColor
+                                  : isDark
+                                  ? Colors.grey[800]
+                                  : Colors.grey.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: isSelected ? [
+                                BoxShadow(
+                                  color: accentColor.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ] : null,
+                              border: isSelected
+                                  ? null
+                                  : Border.all(
+                                color: isDark ? Colors.grey[700]! : Colors.grey.withOpacity(0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  time,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                    color: isSelected ? Colors.white : textColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+
+                                // Tag indicating time of day
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Colors.white.withOpacity(0.2)
+                                        : _getTimeOfDayColor(timeOfDay, isDark),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    timeOfDay,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : _getTimeOfDayTextColor(timeOfDay),
+                                    ),
+                                  ),
+                                ),
+
+                                if (isEarlyMorning && !isSelected)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.star,
+                                          color: Colors.amber,
+                                          size: 10,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          'Early bird',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 9,
+                                            color: Colors.amber,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                if (isEvening && !isSelected)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.wb_twilight,
+                                          color: Colors.orangeAccent,
+                                          size: 10,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          'Sunset',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 9,
+                                            color: Colors.orangeAccent,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 32),
@@ -286,6 +431,48 @@ class _ReschedulePageState extends State<ReschedulePage> {
         ),
       ),
     );
+  }
+
+  // Helper methods for time selection
+  String _getTimeOfDay(String time) {
+    if (time.contains('AM')) {
+      return 'Morning';
+    } else if (time.contains('PM')) {
+      final hourStr = time.split(':')[0];
+      final hour = int.tryParse(hourStr) ?? 0;
+      if (hour < 5) {
+        return 'Afternoon';
+      } else {
+        return 'Evening';
+      }
+    }
+    return 'Afternoon';
+  }
+
+  Color _getTimeOfDayColor(String timeOfDay, bool isDark) {
+    switch (timeOfDay) {
+      case 'Morning':
+        return Colors.blue.withOpacity(0.1);
+      case 'Afternoon':
+        return Colors.orange.withOpacity(0.1);
+      case 'Evening':
+        return Colors.purple.withOpacity(0.1);
+      default:
+        return isDark ? Colors.grey[800]! : Colors.grey.withOpacity(0.1);
+    }
+  }
+
+  Color _getTimeOfDayTextColor(String timeOfDay) {
+    switch (timeOfDay) {
+      case 'Morning':
+        return Colors.blue;
+      case 'Afternoon':
+        return Colors.orange;
+      case 'Evening':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
   }
 
   Future<void> _selectDate(BuildContext context, Color accentColor, Color textColor) async {
