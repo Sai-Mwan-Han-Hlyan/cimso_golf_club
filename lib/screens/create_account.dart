@@ -89,9 +89,22 @@ class _CreateAccountState extends State<CreateAccount> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Logo centered
+                    // Logo centered with Golf Booking text underneath
                     Center(
-                      child: Image.asset('assets/cimso_black.png', height: 60),
+                      child: Column(
+                        children: [
+                          Image.asset('assets/cimso_black.png', height: 60),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Golf Booking',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 40),
 

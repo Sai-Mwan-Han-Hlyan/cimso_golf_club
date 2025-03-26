@@ -6,6 +6,9 @@ import 'booking_model.dart';
 // Import correctly with the full path
 import 'package:cimso_golf_booking/screens/mybooking.dart';
 import 'package:cimso_golf_booking/providers/theme_provider.dart';
+// Add these new imports
+import 'notification_manager.dart';
+import 'notification.dart';
 
 class ReceptionPage extends StatefulWidget {
   final String course;
@@ -84,6 +87,13 @@ class _ReceptionPageState extends State<ReceptionPage> with SingleTickerProvider
     );
 
     _animationController.forward();
+
+    // Show notification after delay - NEW CODE
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () {
+        _showNotificationPopup(context);
+      });
+    });
   }
 
   @override
@@ -91,6 +101,105 @@ class _ReceptionPageState extends State<ReceptionPage> with SingleTickerProvider
     _animationController.dispose();
     super.dispose();
   }
+
+  // Add this new method for notification popup
+  void _showNotificationPopup(BuildContext context) {
+    // Get theme information
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+    final colors = isDark ? _darkThemeColors : _lightThemeColors;
+
+    final newNotification = NotificationModel(
+      title: 'Booking Complete!',
+      message: 'Your tee time for ${widget.course} at ${widget.time} on ${DateFormat('EEE, MMM d').format(widget.date)} has been confirmed.',
+      icon: Icons.notifications_active,
+      timestamp: DateTime.now(),
+    );
+
+    NotificationManager.addNotification(newNotification);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: colors['card'],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: isDark
+              ? BorderSide(color: Colors.grey[800]!, width: 1)
+              : BorderSide.none,
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colors['primary']!.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.notifications_active,
+                color: colors['primary'],
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                newNotification.title,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: colors['textPrimary'],
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          newNotification.message,
+          style: GoogleFonts.poppins(
+            color: colors['textSecondary'],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red[400],
+            ),
+            child: Text(
+              'Close',
+              style: GoogleFonts.poppins(),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationScreen()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors['primary'],
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'View Notifications',
+              style: GoogleFonts.poppins(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 
   @override
   Widget build(BuildContext context) {

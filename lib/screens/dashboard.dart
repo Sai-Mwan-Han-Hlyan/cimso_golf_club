@@ -98,21 +98,21 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
       location: '4 Foe Ed, Joroeme',
       rating: 4.5,
       distance: '5.7 mi',
-      imagePath: 'assets/Golf-Course.png',
+      imagePath: 'assets/Golf-Course-2.png',
     ),
     GolfCourse(
       name: 'Royal Bangkok Golf Club',
       location: '120 Siam Rd, Bangkok',
       rating: 4.7,
       distance: '7.3 mi',
-      imagePath: 'assets/Golf-Course.png',
+      imagePath: 'assets/Golf-Course-3.jpg',
     ),
     GolfCourse(
       name: 'Phuket Islands Golf',
       location: '88 Beach Ave, Phuket',
       rating: 4.9,
       distance: '12.5 mi',
-      imagePath: 'assets/Golf-Course.png',
+      imagePath: 'assets/Golf-Course-4.jpg',
     ),
   ];
 
