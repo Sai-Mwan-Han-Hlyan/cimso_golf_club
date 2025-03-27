@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:cimso_golf_booking/providers/theme_provider.dart';
+import 'package:cimso_golf_booking/l10n/app_localizations.dart';
 
 class ProfilePage extends StatefulWidget {
   // Updated callback to include all profile fields
@@ -73,6 +74,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     'AE +971',
     'SA +966',
   ];
+
+  // Helper method for translations
+  String t(String key) => AppLocalizations.of(context).translate(key);
 
   @override
   void initState() {
@@ -158,7 +162,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Profile updated successfully'),
+        content: Text(t('saveChanges')),
         backgroundColor: accentColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -241,7 +245,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                 ),
               ),
               Text(
-                'Change Profile Photo',
+                t('profile'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -274,7 +278,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   ),
                   _photoOptionButton(
                     icon: Icons.delete_outline,
-                    label: 'Remove',
+                    label: t('cancel'),
                     isDestructive: true,
                     onTap: () {
                       Navigator.pop(context);
@@ -294,7 +298,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   ),
                 ),
                 child: Text(
-                  'Cancel',
+                  t('cancel'),
                   style: TextStyle(
                     fontSize: 16,
                     color: isDark ? Colors.grey[400] : Colors.black54,
@@ -366,11 +370,14 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     final Color dividerColor = isDark ? Colors.grey[700]! : Colors.grey[300]!;
     final Color emptyValueColor = isDark ? Colors.grey[600]! : Colors.grey[400]!;
 
+    // Get screen width for responsive layout
+    final double screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
         title: Text(
-          _isEditMode ? 'Edit Profile' : 'Profile',
+          _isEditMode ? t('profile') : t('profile'),
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 18,
@@ -397,115 +404,123 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          // Add padding to avoid overflow at the bottom
+          padding: const EdgeInsets.only(bottom: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Profile header with photo
-              Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  // Header background
-                  // Step 1: Make sure to add the asset to your pubspec.yaml file:
-// assets:
-//   - assets/header_background.jpg  // Replace with your actual image path
-
-// Step 2: Replace the existing header background container with this code:
-
-// Header background
-                  Container(
-                    width: double.infinity,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage('assets/background.jpg'), // Replace with your image path
-                        fit: BoxFit.cover,
-                        colorFilter: ColorFilter.mode(
-                          accentColor.withOpacity(0.7), // Optional overlay to maintain brand color
-                          BlendMode.overlay,
-                        ),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: accentColor.withOpacity(isDark ? 0.5 : 0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Profile image - positioned to overflow the header
-                  Positioned(
-                    bottom: -60,
-                    child: GestureDetector(
-                      onTap: _isEditMode ? _showChangePhotoOptions : null,
+              SizedBox(
+                // Set a fixed height for the stack to avoid layout issues
+                height: 200, // Increased to prevent overflow issues
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    // Header background
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
                       child: Container(
+                        width: double.infinity,
+                        height: 150,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: backgroundColor, width: 5),
+                          color: accentColor, // Fallback if image fails to load
+                          image: DecorationImage(
+                            image: AssetImage('assets/background.jpg'),
+                            fit: BoxFit.cover,
+                            colorFilter: ColorFilter.mode(
+                              accentColor.withOpacity(0.7),
+                              BlendMode.overlay,
+                            ),
+                            onError: (exception, stackTrace) {
+                              // If image fails to load, we already have the fallback color
+                            },
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                              color: accentColor.withOpacity(isDark ? 0.5 : 0.3),
                               blurRadius: 10,
                               offset: const Offset(0, 5),
                             ),
                           ],
                         ),
-                        child: CircleAvatar(
-                          radius: 65,
-                          backgroundColor: backgroundColor,
-                          backgroundImage: _imageFile != null
-                              ? FileImage(_imageFile!) as ImageProvider
-                              : null,
-                          child: _imageFile == null
-                              ? Text(
-                            nameController.text.isNotEmpty
-                                ? nameController.text[0].toUpperCase()
-                                : 'U',
-                            style: TextStyle(
-                              fontSize: 50,
-                              fontWeight: FontWeight.bold,
-                              color: accentColor,
-                            ),
-                          )
-                              : null,
-                        ),
                       ),
                     ),
-                  ),
 
-                  // Edit camera icon
-                  if (_isEditMode)
+                    // Profile image - positioned to overflow the header
                     Positioned(
-                      bottom: -20,
-                      right: MediaQuery.of(context).size.width / 2 - 80,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: accentColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: backgroundColor, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.white,
-                          size: 20,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: _isEditMode ? _showChangePhotoOptions : null,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: backgroundColor, width: 5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 65,
+                            backgroundColor: backgroundColor,
+                            backgroundImage: _imageFile != null
+                                ? FileImage(_imageFile!) as ImageProvider
+                                : null,
+                            child: _imageFile == null
+                                ? Text(
+                              nameController.text.isNotEmpty
+                                  ? nameController.text[0].toUpperCase()
+                                  : 'U',
+                              style: TextStyle(
+                                fontSize: 50,
+                                fontWeight: FontWeight.bold,
+                                color: accentColor,
+                              ),
+                            )
+                                : null,
+                          ),
                         ),
                       ),
                     ),
-                ],
+
+                    // Edit camera icon
+                    if (_isEditMode)
+                      Positioned(
+                        bottom: 20,
+                        right: MediaQuery.of(context).size.width / 2 - 80,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accentColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: backgroundColor, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
 
               // Spacing to account for overlapping profile image
-              const SizedBox(height: 70),
+              const SizedBox(height: 30), // Reduced from 70 as we adjusted the stack height
 
               // Profile form content
               Padding(
@@ -525,6 +540,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                               color: textColor,
                             ),
                             textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis, // Handle long names
+                            maxLines: 1,
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -534,6 +551,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                               color: secondaryTextColor,
                             ),
                             textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis, // Handle long emails
+                            maxLines: 1,
                           ),
                           const SizedBox(height: 20),
                         ],
@@ -588,6 +607,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                             accentColor: accentColor,
                             dividerColor: dividerColor,
                             isDark: isDark,
+                            screenWidth: screenWidth,
                           ),
 
                         _buildInfoRow(
@@ -613,6 +633,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                             secondaryTextColor: secondaryTextColor,
                             textColor: textColor,
                             dividerColor: dividerColor,
+                            screenWidth: screenWidth,
                           ),
 
                         if (!_isEditMode)
@@ -730,30 +751,33 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             color: secondaryTextColor,
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: secondaryTextColor,
-                  fontWeight: FontWeight.w500,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: secondaryTextColor,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: isEmpty ? emptyValueColor : textColor,
-                  fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: isEmpty ? emptyValueColor : textColor,
+                    fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
+                  ),
+                  overflow: TextOverflow.ellipsis, // Prevent overflow with long values
+                  maxLines: 1,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const Spacer(),
           if (onTap != null)
             Icon(
               Icons.edit,
@@ -789,6 +813,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center, // Align vertically centered
         children: [
           Icon(
             icon,
@@ -862,10 +887,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   ),
                 ],
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  'Save Changes',
-                  style: TextStyle(
+                  t('saveChanges'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -885,7 +910,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     required Color accentColor,
     required Color dividerColor,
     required bool isDark,
+    required double screenWidth,
   }) {
+    // Calculate dynamic width for dropdown based on screen size
+    final dropdownWidth = screenWidth < 360 ? 90.0 : 110.0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -898,9 +927,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           ),
           const SizedBox(width: 12),
           Container(
-            width: 110,
+            width: dropdownWidth, // Adjusted width based on screen size
             height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 4), // Reduced padding
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
@@ -916,12 +945,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                 child: DropdownButton<String>(
                   value: selectedCountryCode,
                   isExpanded: true,
-                  icon: const Icon(Icons.arrow_drop_down, size: 20),
-                  iconSize: 18,
+                  icon: const Icon(Icons.arrow_drop_down, size: 18), // Smaller icon
+                  iconSize: 16,
                   elevation: 16,
+                  itemHeight: 50, // More compact dropdown items
                   style: TextStyle(
                     color: textColor,
-                    fontSize: 14,
+                    fontSize: 12, // Smaller font size
                   ),
                   onChanged: (String? newValue) {
                     if (newValue != null) {
@@ -931,11 +961,16 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     }
                   },
                   items: countryCodes.map<DropdownMenuItem<String>>((String value) {
+                    // Use shortened version for smaller screens
+                    String displayValue = screenWidth < 360
+                        ? value.split(' ')[0] + ' ' + value.split(' ')[1]
+                        : value;
+
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(
-                        value,
-                        style: TextStyle(fontSize: 14, color: textColor),
+                        displayValue,
+                        style: TextStyle(fontSize: 12, color: textColor),
                         overflow: TextOverflow.ellipsis,
                       ),
                     );
@@ -984,6 +1019,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     required Color secondaryTextColor,
     required Color textColor,
     required Color dividerColor,
+    required double screenWidth,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1009,12 +1045,24 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          // For smaller screens, use Wrap instead of Row for better responsiveness
+          screenWidth < 360
+              ? Wrap(
+            spacing: 8, // gap between adjacent options
+            runSpacing: 8, // gap between lines
+            alignment: WrapAlignment.spaceEvenly,
+            children: [
+              _genderOption('Male', accentColor, textColor, screenWidth),
+              _genderOption('Female', accentColor, textColor, screenWidth),
+              _genderOption('Other', accentColor, textColor, screenWidth),
+            ],
+          )
+              : Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _genderOption('Male', accentColor, textColor),
-              _genderOption('Female', accentColor, textColor),
-              _genderOption('Other', accentColor, textColor),
+              _genderOption('Male', accentColor, textColor, screenWidth),
+              _genderOption('Female', accentColor, textColor, screenWidth),
+              _genderOption('Other', accentColor, textColor, screenWidth),
             ],
           ),
         ],
@@ -1022,10 +1070,14 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
   }
 
-  Widget _genderOption(String value, Color accentColor, Color textColor) {
+  Widget _genderOption(String value, Color accentColor, Color textColor, double screenWidth) {
     final isSelected = gender == value;
     final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
     final borderColor = isDark ? Colors.grey[700]! : Colors.grey.shade300;
+
+    // Calculate dynamic padding based on screen size
+    final double horizontalPadding = screenWidth < 360 ? 16 : 24;
+    final double verticalPadding = 12;
 
     return GestureDetector(
       onTap: () {
@@ -1034,7 +1086,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding
+        ),
         decoration: BoxDecoration(
           color: isSelected ? accentColor : Colors.transparent,
           border: Border.all(
