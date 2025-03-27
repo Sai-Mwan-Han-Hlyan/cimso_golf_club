@@ -5,6 +5,7 @@ import 'auth_service.dart';
 import 'notification.dart';  // Import notification screen
 import 'package:cimso_golf_booking/providers/theme_provider.dart'; // Add this import
 import 'package:cimso_golf_booking/screens/settings_screen.dart';
+import 'package:cimso_golf_booking/l10n/app_localizations.dart';
 
 class DashboardSidebar extends StatelessWidget {
   final String userName;
@@ -30,8 +31,13 @@ class DashboardSidebar extends StatelessWidget {
     required this.secondaryTextColor,
   }) : super(key: key);
 
+  // In dashboard_sidebar.dart
+// Inside the build method
+
   @override
   Widget build(BuildContext context) {
+    // Get the LanguageProvider to access translations
+    final localizations = AppLocalizations.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
 
@@ -75,7 +81,8 @@ class DashboardSidebar extends StatelessWidget {
           Divider(height: 1, color: Theme.of(context).dividerColor),
           _buildDrawerItem(
               Icons.dashboard_outlined,
-              'Dashboard',
+              // Use translations
+              localizations.translate('dashboard'),
               isSelected: selectedIndex == 0,
               onTap: onDashboardTap,
               effectiveTextColor: effectiveTextColor,
@@ -83,7 +90,8 @@ class DashboardSidebar extends StatelessWidget {
           ),
           _buildDrawerItem(
               Icons.person_outline,
-              'Profile',
+              // Use translations
+              localizations.translate('profile'),
               isSelected: selectedIndex == 1,
               onTap: onProfileTap,
               effectiveTextColor: effectiveTextColor,
@@ -91,7 +99,8 @@ class DashboardSidebar extends StatelessWidget {
           ),
           _buildDrawerItem(
               Icons.calendar_today_outlined,
-              'My Bookings',
+              // Use translations
+              localizations.translate('bookings'),
               isSelected: selectedIndex == 2,
               onTap: onBookingsTap,
               effectiveTextColor: effectiveTextColor,
@@ -99,7 +108,8 @@ class DashboardSidebar extends StatelessWidget {
           ),
           _buildDrawerItem(
               Icons.notifications_outlined,
-              'Notifications',
+              // Use translations
+              localizations.translate('notifications'),
               isSelected: selectedIndex == 3,
               onTap: () {
                 // Close the drawer first
@@ -117,11 +127,12 @@ class DashboardSidebar extends StatelessWidget {
           Divider(height: 1, color: Theme.of(context).dividerColor),
           _buildDrawerItem(
               Icons.settings_outlined,
-              'Settings',
+              // Use translations
+              localizations.translate('settings'),
               isSelected: selectedIndex == 4,
               onTap: () {
                 Navigator.pop(context); // Close the drawer
-                // Navigate to the settings screen instead of showing a dialog
+                // Navigate to the settings screen
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const SettingsScreen()),
@@ -132,13 +143,15 @@ class DashboardSidebar extends StatelessWidget {
           ),
           _buildDrawerItem(
               Icons.help_outline,
-              'Help & Support',
+              // Use translations
+              localizations.translate('help'),
               effectiveTextColor: effectiveTextColor,
               effectiveSecondaryTextColor: effectiveSecondaryTextColor
           ),
           _buildDrawerItem(
               Icons.logout_outlined,
-              'Log Out',
+              // Use translations
+              localizations.translate('logout'),
               onTap: () => _handleLogout(context),
               effectiveTextColor: effectiveTextColor,
               effectiveSecondaryTextColor: effectiveSecondaryTextColor

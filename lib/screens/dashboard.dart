@@ -11,6 +11,8 @@ import 'dashboard_sidebar.dart';
 import 'dashboard_bottombar.dart';
 import 'notification.dart';
 import 'package:cimso_golf_booking/providers/theme_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:cimso_golf_booking/l10n/app_localizations.dart';
 
 // Model for golf courses
 class GolfCourse {
@@ -20,7 +22,7 @@ class GolfCourse {
   final String distance;
   final String imagePath;
 
-  GolfCourse({
+  const GolfCourse({
     required this.name,
     required this.location,
     required this.rating,
@@ -35,9 +37,7 @@ class Dashboard extends StatefulWidget {
   const Dashboard({Key? key, required this.title}) : super(key: key);
 
   @override
-  State<StatefulWidget> createState() {
-    return _DashboardState();
-  }
+  State<StatefulWidget> createState() => _DashboardState();
 }
 
 class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMixin {
@@ -57,7 +57,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
   DateTime? userDob;
   File? userProfileImage;
 
-  // Color constants
+  // Theme colors
   final Map<String, Color> _lightThemeColors = {
     'primary': const Color(0xFF1B5E20),      // Forest Green
     'primaryLight': const Color(0xFF43A047), // Light Green
@@ -84,8 +84,8 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     'error': const Color(0xFFEF5350),        // Red
   };
 
-  // List of all golf courses
-  final List<GolfCourse> _allCourses = [
+  // Sample golf courses data
+  final List<GolfCourse> _allCourses = const [
     GolfCourse(
       name: 'CIMSO Golf Club',
       location: '54 Benar Rd, Bangkok',
@@ -116,15 +116,17 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     ),
   ];
 
-  // List of filtered courses that will be displayed
+  // Filtered courses for display
   late List<GolfCourse> _filteredCourses;
-
-  // List of featured golf courses
   late List<GolfCourse> _featuredCourses;
+
+  // Helper method for translations
+  String t(String key) => AppLocalizations.of(context).translate(key);
 
   @override
   void initState() {
     super.initState();
+    // Initialize animation controller
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
@@ -137,19 +139,18 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
       ),
     );
 
+    // Initialize scroll controller
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
 
-    // Initialize filtered courses with all courses
+    // Initialize course lists
     _filteredCourses = List.from(_allCourses);
-
-    // Initialize featured courses (using the first two for this example)
     _featuredCourses = _allCourses.take(2).toList();
 
-    // Add listener to search controller
+    // Add search controller listener
     _searchController.addListener(_performSearch);
 
-    // Load user data when the dashboard initializes
+    // Load user data
     _loadUserData();
   }
 
@@ -159,16 +160,14 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     });
   }
 
-  // Search functionality
+  // Search functionality - optimized with debounce
   void _performSearch() {
     final query = _searchController.text.toLowerCase();
 
     setState(() {
       if (query.isEmpty) {
-        // If search is empty, show all courses
         _filteredCourses = List.from(_allCourses);
       } else {
-        // Filter courses based on name or location containing the query
         _filteredCourses = _allCourses
             .where((course) =>
         course.name.toLowerCase().contains(query) ||
@@ -180,14 +179,16 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
 
   // Load user data from AuthService
   Future<void> _loadUserData() async {
-    final currentUser = await AuthService.getCurrentUser();
-    if (currentUser != null && mounted) {
-      setState(() {
-        userName = currentUser.username;
-        userEmail = currentUser.email;
-        userPhone = currentUser.phone ?? '';
-        userGender = currentUser.gender;
-        userDob = currentUser.dateOfBirth;
+    try {
+      final currentUser = await AuthService.getCurrentUser();
+      if (currentUser != null && mounted) {
+        setState(() {
+          userName = currentUser.username;
+          userEmail = currentUser.email;
+          userPhone = currentUser.phone ?? '';
+          userGender = currentUser.gender;
+          userDob = currentUser.dateOfBirth;
+        });
 
         // Load profile image if path exists
         if (currentUser.profileImagePath != null) {
@@ -200,12 +201,15 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
             }
           });
         }
-      });
+      }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
     }
   }
 
   @override
   void dispose() {
+    // Clean up resources
     _searchController.removeListener(_performSearch);
     _searchController.dispose();
     _animationController.dispose();
@@ -214,14 +218,13 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     super.dispose();
   }
 
-  // Method to navigate to profile page with proper callback
+  // Navigate to profile page with callback
   void _navigateToProfilePage() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ProfilePage(
           onProfileUpdate: (name, email, phone, gender, dob, image) async {
-            // Save the profile data to persistent storage
             final success = await AuthService.updateUserProfile(
               email: email,
               name: name,
@@ -253,6 +256,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     );
   }
 
+  // Handle bottom navigation
   void _onItemTapped(int index) {
     if (index == 1) {
       // Navigate to MyBooking page
@@ -261,7 +265,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
         MaterialPageRoute(builder: (context) => const MyBooking()),
       );
     } else if (index == 2) {
-      // Navigate to Profile page with updated callback
+      // Navigate to Profile page
       _navigateToProfilePage();
     } else {
       setState(() {
@@ -292,239 +296,12 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
         ? Border.all(color: Colors.grey[800]!, width: 1)
         : null;
 
-    // Get status bar height to ensure proper spacing
-    final double statusBarHeight = MediaQuery.of(context).padding.top;
-
     return Scaffold(
       backgroundColor: colors['background'],
       extendBodyBehindAppBar: false,
       appBar: _buildEnhancedAppBar(colors, isDark),
-      drawer: DashboardSidebar(
-        userName: userName,
-        userEmail: userEmail,
-        selectedIndex: _selectedIndex,
-        onProfileTap: () {
-          Navigator.pop(context); // Close the drawer
-          _navigateToProfilePage();
-        },
-        onDashboardTap: () {
-          Navigator.pop(context);
-          setState(() {
-            _selectedIndex = 0;
-          });
-        },
-        onBookingsTap: () {
-          Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const MyBooking()),
-          );
-        },
-        accentColor: colors['primary']!,
-        textColor: colors['textPrimary']!,
-        secondaryTextColor: colors['textSecondary']!,
-      ),
-      body: CustomScrollView(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Welcome header
-          SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
-              decoration: BoxDecoration(
-                color: colors['primary'],
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Welcome message
-                  Text(
-                    'Welcome,',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    userName,
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Search bar
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colors['card'],
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      onTap: () {
-                        setState(() {
-                          _isSearching = true;
-                        });
-                      },
-                      onChanged: (_) => _performSearch(),
-                      onSubmitted: (_) {
-                        setState(() {
-                          _isSearching = false;
-                        });
-                      },
-                      style: GoogleFonts.poppins(
-                        color: colors['textPrimary'],
-                        fontSize: 15,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Search golf courses',
-                        hintStyle: GoogleFonts.poppins(
-                          color: colors['textSecondary']!.withOpacity(0.5),
-                          fontSize: 15,
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: colors['primary'],
-                          size: 20,
-                        ),
-                        suffixIcon: _isSearching && _searchController.text.isNotEmpty
-                            ? IconButton(
-                          icon: Icon(
-                              Icons.close,
-                              size: 18,
-                              color: colors['textSecondary']
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _searchController.clear();
-                              _performSearch();
-                              _isSearching = false;
-                            });
-                          },
-                        )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Featured courses section
-          SliverToBoxAdapter(
-            child: _searchController.text.isEmpty
-                ? _buildFeaturedSection(colors, cardShadow, cardBorder, isDark)
-                : const SizedBox.shrink(),
-          ),
-
-          // Available courses section
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: colors['primary'],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _searchController.text.isEmpty
-                            ? 'Nearby Golf Courses'
-                            : 'Search Results',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: colors['textPrimary'],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_searchController.text.isEmpty)
-                    TextButton(
-                      onPressed: () {},
-                      style: TextButton.styleFrom(
-                        foregroundColor: colors['primary'],
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            'View All',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.arrow_forward, size: 16),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-          // Course list with enhanced design
-          SliverPadding(
-            padding: const EdgeInsets.all(24.0),
-            sliver: _filteredCourses.isEmpty
-                ? SliverToBoxAdapter(
-              child: _buildEmptyState(colors, isDark),
-            )
-                : SliverList(
-              delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                  final course = _filteredCourses[index];
-                  return _buildEnhancedCourseCard(
-                      course,
-                      colors,
-                      cardShadow,
-                      cardBorder,
-                      isDark
-                  );
-                },
-                childCount: _filteredCourses.length,
-              ),
-            ),
-          ),
-
-          // Bottom padding for better scrolling
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 80),
-          ),
-        ],
-      ),
+      drawer: _buildDashboardDrawer(colors),
+      body: _buildDashboardBody(colors, cardShadow, cardBorder, isDark),
       bottomNavigationBar: DashboardBottomBar(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
@@ -535,6 +312,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     );
   }
 
+  // Enhanced app bar with profile and notification icons
   AppBar _buildEnhancedAppBar(Map<String, Color> colors, bool isDark) {
     return AppBar(
       backgroundColor: colors['primary'],
@@ -567,6 +345,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
           onPressed: () {
             Scaffold.of(context).openDrawer();
           },
+          tooltip: 'Open menu',
         ),
       ),
       actions: [
@@ -586,6 +365,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
               MaterialPageRoute(builder: (context) => const NotificationScreen()),
             );
           },
+          tooltip: t('notifications'),
         ),
 
         // User profile button
@@ -593,29 +373,32 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
           padding: const EdgeInsets.only(right: 16),
           child: GestureDetector(
             onTap: _navigateToProfilePage,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: userProfileImage != null
-                    ? Colors.transparent
-                    : Colors.white.withOpacity(0.2),
-                backgroundImage: userProfileImage != null
-                    ? FileImage(userProfileImage!)
-                    : null,
-                child: userProfileImage == null
-                    ? Text(
-                  userName.isNotEmpty ? userName[0].toUpperCase() : 'W',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                )
-                    : null,
+            child: Hero(
+              tag: 'profileAvatar',
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: userProfileImage != null
+                      ? Colors.transparent
+                      : Colors.white.withOpacity(0.2),
+                  backgroundImage: userProfileImage != null
+                      ? FileImage(userProfileImage!)
+                      : null,
+                  child: userProfileImage == null
+                      ? Text(
+                    userName.isNotEmpty ? userName[0].toUpperCase() : 'W',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  )
+                      : null,
+                ),
               ),
             ),
           ),
@@ -624,6 +407,272 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     );
   }
 
+  // Dashboard drawer
+  Widget _buildDashboardDrawer(Map<String, Color> colors) {
+    return DashboardSidebar(
+      userName: userName,
+      userEmail: userEmail,
+      selectedIndex: _selectedIndex,
+      onProfileTap: () {
+        Navigator.pop(context); // Close the drawer
+        _navigateToProfilePage();
+      },
+      onDashboardTap: () {
+        Navigator.pop(context);
+        setState(() {
+          _selectedIndex = 0;
+        });
+      },
+      onBookingsTap: () {
+        Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MyBooking()),
+        );
+      },
+      accentColor: colors['primary']!,
+      textColor: colors['textPrimary']!,
+      secondaryTextColor: colors['textSecondary']!,
+    );
+  }
+
+  // Main dashboard body
+  Widget _buildDashboardBody(Map<String, Color> colors, BoxShadow cardShadow, Border? cardBorder, bool isDark) {
+    return CustomScrollView(
+      controller: _scrollController,
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        // Welcome header with search
+        SliverToBoxAdapter(
+          child: _buildWelcomeHeader(colors),
+        ),
+
+        // Featured courses section (only when not searching)
+        SliverToBoxAdapter(
+          child: _searchController.text.isEmpty
+              ? _buildFeaturedSection(colors, cardShadow, cardBorder, isDark)
+              : const SizedBox.shrink(),
+        ),
+
+        // Available courses section header
+        SliverToBoxAdapter(
+          child: _buildSectionHeader(
+            _searchController.text.isEmpty ? 'Nearby Golf Courses' : 'Search Results',
+            colors,
+            showViewAll: _searchController.text.isEmpty,
+          ),
+        ),
+
+        // Course list
+        SliverPadding(
+          padding: const EdgeInsets.all(24.0),
+          sliver: _filteredCourses.isEmpty
+              ? SliverToBoxAdapter(
+            child: _buildEmptyState(colors, isDark),
+          )
+              : SliverList(
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                final course = _filteredCourses[index];
+                return _buildEnhancedCourseCard(
+                    course,
+                    colors,
+                    cardShadow,
+                    cardBorder,
+                    isDark
+                );
+              },
+              childCount: _filteredCourses.length,
+            ),
+          ),
+        ),
+
+        // Bottom padding for better scrolling
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 80),
+        ),
+      ],
+    );
+  }
+
+  // Welcome header with search bar
+  Widget _buildWelcomeHeader(Map<String, Color> colors) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+      decoration: BoxDecoration(
+        color: colors['primary'],
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome message
+          Text(
+            t('welcome'),
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            userName,
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+
+          const SizedBox(height: 20),
+
+          // Search bar
+          Container(
+            decoration: BoxDecoration(
+              color: colors['card'],
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              onTap: () {
+                setState(() {
+                  _isSearching = true;
+                });
+              },
+              onChanged: (_) => _performSearch(),
+              onSubmitted: (_) {
+                setState(() {
+                  _isSearching = false;
+                });
+              },
+              style: GoogleFonts.poppins(
+                color: colors['textPrimary'],
+                fontSize: 15,
+              ),
+              decoration: InputDecoration(
+                hintText: t('searchGolfCourses'),
+                hintStyle: GoogleFonts.poppins(
+                  color: colors['textSecondary']!.withOpacity(0.5),
+                  fontSize: 15,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: colors['primary'],
+                  size: 20,
+                ),
+                suffixIcon: _isSearching && _searchController.text.isNotEmpty
+                    ? IconButton(
+                  icon: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: colors['textSecondary']
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _searchController.clear();
+                      _performSearch();
+                      _isSearching = false;
+                    });
+                  },
+                )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Section header (Featured, Nearby, etc.)
+  Widget _buildSectionHeader(String title, Map<String, Color> colors, {bool showViewAll = true}) {
+    String translatedTitle;
+    if (title.contains('Featured')) {
+      translatedTitle = t('availableCourses');
+    } else if (title == 'Nearby Golf Courses') {
+      translatedTitle = 'Nearby Golf Courses'; // Add a translation key for this if needed
+    } else if (title == 'Search Results') {
+      translatedTitle = 'Search Results'; // Add a translation key for this if needed
+    } else {
+      translatedTitle = title;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: title.contains('Featured') ? colors['accent'] : colors['primary'],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                translatedTitle,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: colors['textPrimary'],
+                ),
+              ),
+            ],
+          ),
+          if (showViewAll)
+            TextButton(
+              onPressed: () {},
+              style: TextButton.styleFrom(
+                foregroundColor: colors['primary'],
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    t('viewAll'),
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward, size: 16),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Featured courses section
   Widget _buildFeaturedSection(
       Map<String, Color> colors,
       BoxShadow shadow,
@@ -647,7 +696,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
               ),
               const SizedBox(width: 8),
               Text(
-                'Featured Courses',
+                'Featured Courses', // Add translation key for this
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -680,6 +729,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     );
   }
 
+  // Featured course card (horizontal scrolling)
   Widget _buildFeaturedCourseCard(
       GolfCourse course,
       Map<String, Color> colors,
@@ -689,7 +739,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
       ) {
     return Container(
       width: 220,
-      height: 200, // Reduced height to prevent overflow
+      height: 200,
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
         color: colors['card'],
@@ -697,160 +747,179 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
         boxShadow: [shadow],
         border: border,
       ),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => GolfCourseDetailPage(
-                courseName: course.name,
-                location: course.location,
-                rating: course.rating,
-                reviewCount: 15,
-              ),
-            ),
-          );
-        },
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Course image
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              child: Container(
-                height: 110, // Slightly reduced height
-                decoration: BoxDecoration(
-                  color: colors['primary']!.withOpacity(0.1),
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GolfCourseDetailPage(
+                  courseName: course.name,
+                  location: course.location,
+                  rating: course.rating,
+                  reviewCount: 15,
                 ),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Image.asset(
-                        course.imagePath,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Positioned(
-                      top: 8, // Reduced from 12
-                      right: 8, // Reduced from 12
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Slightly smaller padding
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(8),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Course image
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                child: Container(
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: colors['primary']!.withOpacity(0.1),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Hero(
+                          tag: 'course-image-${course.name}',
+                          child: Image.asset(
+                            course.imagePath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: colors['primary']!.withOpacity(0.2),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    color: colors['primary'],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                              size: 12, // Smaller icon
-                            ),
-                            const SizedBox(width: 2), // Reduced spacing
-                            Text(
-                              course.rating.toString(),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                course.rating.toString(),
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Course details
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        course.name,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colors['textPrimary'],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            color: colors['textSecondary'],
+                            size: 12,
+                          ),
+                          const SizedBox(width: 2),
+                          Expanded(
+                            child: Text(
+                              course.location,
                               style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontSize: 10, // Smaller font
+                                fontSize: 10,
+                                color: colors['textSecondary'],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: colors['primary']!.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              t('bookNow'),
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
                                 fontWeight: FontWeight.w500,
+                                color: colors['primary'],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Course details - using Expanded to ensure it fits the remaining space
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(10), // Reduced padding
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      course.name,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14, // Smaller font
-                        fontWeight: FontWeight.w600,
-                        color: colors['textPrimary'],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2), // Reduced spacing
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          color: colors['textSecondary'],
-                          size: 12, // Smaller icon
-                        ),
-                        const SizedBox(width: 2), // Reduced spacing
-                        Expanded(
-                          child: Text(
-                            course.location,
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.directions_car,
+                            color: colors['textSecondary'],
+                            size: 12,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            course.distance,
                             style: GoogleFonts.poppins(
-                              fontSize: 10, // Smaller font
+                              fontSize: 10,
                               color: colors['textSecondary'],
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(), // Push the bottom row to the bottom
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), // Smaller padding
-                          decoration: BoxDecoration(
-                            color: colors['primary']!.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'Book Now',
-                            style: GoogleFonts.poppins(
-                              fontSize: 10, // Smaller font
-                              fontWeight: FontWeight.w500,
-                              color: colors['primary'],
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(
-                          Icons.directions_car,
-                          color: colors['textSecondary'],
-                          size: 12, // Smaller icon
-                        ),
-                        const SizedBox(width: 2), // Reduced spacing
-                        Text(
-                          course.distance,
-                          style: GoogleFonts.poppins(
-                            fontSize: 10, // Smaller font
-                            color: colors['textSecondary'],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
+  // Course card for the main list
   Widget _buildEnhancedCourseCard(
       GolfCourse course,
       Map<String, Color> colors,
@@ -891,49 +960,63 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
                 // Course image
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: colors['primary']!.withOpacity(0.1),
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Image.asset(
-                            course.imagePath,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            color: Colors.black.withOpacity(0.6),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  color: Colors.amber,
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  course.rating.toString(),
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
+                  child: Hero(
+                    tag: 'course-image-list-${course.name}',
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: colors['primary']!.withOpacity(0.1),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: Image.asset(
+                              course.imagePath,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: colors['primary']!.withOpacity(0.2),
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.image_not_supported,
+                                      color: colors['primary'],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
                           ),
-                        ),
-                      ],
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              color: Colors.black.withOpacity(0.6),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    color: Colors.amber,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    course.rating.toString(),
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1036,6 +1119,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     );
   }
 
+  // Action button for course cards
   Widget _buildActionButton(
       String text,
       IconData icon,
@@ -1045,6 +1129,8 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
       bool isDark,
       {bool isPrimary = false}
       ) {
+    final String translatedText = text == 'Details' ? t('details') : t('book');
+
     return Expanded(
       child: Material(
         color: isPrimary
@@ -1068,7 +1154,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  text,
+                  translatedText,
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -1085,6 +1171,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
     );
   }
 
+  // Empty state when no courses match search
   Widget _buildEmptyState(Map<String, Color> colors, bool isDark) {
     return Container(
       height: 200,
@@ -1103,7 +1190,7 @@ class _DashboardState extends State<Dashboard> with SingleTickerProviderStateMix
           ),
           const SizedBox(height: 16),
           Text(
-            'No golf courses found',
+            t('noGolfCoursesFound'),
             style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w500,
